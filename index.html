@@ -8,7 +8,6 @@
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
 
-<!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -45,6 +44,7 @@
     color: var(--ink);
     min-height: 100vh;
     font-size: 15px;
+    overflow-x: hidden;
   }
 
   /* ── SIDEBAR ── */
@@ -54,8 +54,9 @@
     background: var(--ink);
     color: white;
     display: flex; flex-direction: column;
-    z-index: 100;
+    z-index: 150;
     border-right: 1px solid rgba(255,255,255,0.06);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .sidebar-logo {
@@ -142,11 +143,21 @@
   }
   .firebase-config-btn:hover { background: rgba(255,255,255,0.1); color: white; }
 
+  /* Mobile Backdrop Overlay */
+  .sidebar-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.4);
+    backdrop-filter: blur(2px);
+    z-index: 140;
+  }
+
   /* ── MAIN ── */
   .main {
     margin-left: 260px;
     min-height: 100vh;
     display: flex; flex-direction: column;
+    transition: margin-left 0.3s;
   }
 
   /* ── TOPBAR ── */
@@ -156,12 +167,27 @@
     backdrop-filter: blur(12px);
     border-bottom: 1px solid var(--border);
     padding: 14px 32px;
-    display: flex; align-items: center; gap: 16px;
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
   }
+  .topbar-left {
+    display: flex; align-items: center; gap: 8px;
+  }
+  .menu-toggle {
+    display: none;
+    background: transparent; border: none;
+    font-size: 20px; color: var(--ink);
+    cursor: pointer; padding: 4px 8px;
+    border-radius: 6px;
+  }
+  .menu-toggle:hover { background: rgba(0,0,0,0.05); }
+  
   .topbar-title {
     font-family: 'Syne', sans-serif;
     font-size: 20px; font-weight: 700;
-    flex: 1;
+  }
+
+  .topbar-actions {
+    display: flex; align-items: center; gap: 12px;
   }
 
   .search-box {
@@ -182,6 +208,10 @@
   }
   .search-box input::placeholder { color: var(--ink-muted); }
 
+  .topbar-btns {
+    display: flex; gap: 8px;
+  }
+
   .btn {
     display: inline-flex; align-items: center; gap: 7px;
     padding: 9px 18px;
@@ -189,6 +219,7 @@
     font-family: 'DM Sans', sans-serif;
     font-size: 14px; font-weight: 500;
     cursor: pointer; border: none; transition: all 0.2s;
+    white-space: nowrap;
   }
   .btn-primary { background: var(--accent); color: white; }
   .btn-primary:hover { background: var(--accent-dark); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(232,66,10,0.35); }
@@ -257,19 +288,27 @@
   .filter-tab.active { background: var(--accent-light); color: var(--accent); border-color: rgba(232,66,10,0.2); }
   .filter-tab:hover:not(.active) { background: var(--paper); }
 
+  /* Responsive Table Wrapper */
+  .table-responsive {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
   table { width: 100%; border-collapse: collapse; }
   thead tr { background: var(--paper); border-bottom: 1px solid var(--border); }
   th {
     padding: 12px 16px; text-align: left;
     font-size: 11px; font-weight: 600; color: var(--ink-muted);
     letter-spacing: 0.8px; text-transform: uppercase;
+    white-space: nowrap;
   }
   tbody tr { border-bottom: 1px solid var(--border); transition: background 0.15s; }
   tbody tr:last-child { border-bottom: none; }
   tbody tr:hover { background: #fafafa; }
-  td { padding: 13px 16px; font-size: 14px; }
+  td { padding: 13px 16px; font-size: 14px; white-space: nowrap; }
 
-  .item-name { font-weight: 500; color: var(--ink); }
+  .item-name { font-weight: 500; color: var(--ink); white-space: normal; min-width: 160px; }
   .item-code { font-size: 11px; color: var(--ink-muted); font-family: monospace; margin-top: 2px; }
 
   .category-badge {
@@ -279,7 +318,7 @@
     text-transform: uppercase; letter-spacing: 0.3px;
   }
 
-  .stock-bar-wrap { display: flex; align-items: center; gap: 10px; }
+  .stock-bar-wrap { display: flex; align-items: center; gap: 10px; min-width: 120px; }
   .stock-bar { height: 5px; border-radius: 3px; background: #eee; flex: 1; overflow: hidden; }
   .stock-bar-fill { height: 100%; border-radius: 3px; transition: width 0.4s; }
   .stock-number { font-size: 13px; font-weight: 600; min-width: 32px; text-align: right; }
@@ -306,6 +345,7 @@
     background: rgba(0,0,0,0.5);
     backdrop-filter: blur(4px);
     align-items: center; justify-content: center;
+    padding: 16px;
   }
   .modal-overlay.active { display: flex; }
   .modal {
@@ -313,6 +353,8 @@
     width: 100%; max-width: 540px;
     box-shadow: 0 20px 60px rgba(0,0,0,0.2);
     animation: slideUp 0.3s ease;
+    max-height: 90vh;
+    overflow-y: auto;
   }
   @keyframes slideUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
   .modal-header {
@@ -345,7 +387,7 @@
   select.form-control { cursor: pointer; }
 
   /* ── TOAST ── */
-  .toast-wrap { position: fixed; bottom: 24px; right: 24px; z-index: 999; display: flex; flex-direction: column; gap: 8px; }
+  .toast-wrap { position: fixed; bottom: 24px; right: 24px; z-index: 999; display: flex; flex-direction: column; gap: 8px; max-width: calc(100vw - 48px); }
   .toast {
     background: var(--ink); color: white;
     padding: 12px 18px; border-radius: 10px;
@@ -353,14 +395,11 @@
     display: flex; align-items: center; gap: 10px;
     box-shadow: 0 4px 20px rgba(0,0,0,0.25);
     animation: toastIn 0.3s ease;
-    max-width: 320px;
   }
   @keyframes toastIn { from{opacity:0;transform:translateX(20px)} to{opacity:1;transform:translateX(0)} }
   .toast.success { border-left: 3px solid var(--green); }
   .toast.error { border-left: 3px solid #dc2626; }
   .toast.info { border-left: 3px solid var(--cyan); }
-
-  /* Setup overlay dihapus — Firebase terhubung otomatis */
 
   /* ── LOADING ── */
   .loading-row td { text-align: center; padding: 40px; color: var(--ink-muted); }
@@ -378,7 +417,6 @@
   .page.active { display: block; }
 
   /* Riwayat */
-  .history-list { }
   .history-item {
     padding: 16px 20px;
     border-bottom: 1px solid var(--border);
@@ -389,25 +427,105 @@
   .history-icon.in { background: var(--green-light); color: var(--green); }
   .history-icon.out { background: var(--accent-light); color: var(--accent); }
   .history-icon.adj { background: var(--cyan-light); color: var(--cyan); }
-  .history-info { flex: 1; }
-  .history-info strong { font-weight: 500; font-size: 14px; }
+  .history-info { flex: 1; min-width: 0; }
+  .history-info strong { font-weight: 500; font-size: 14px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .history-info span { font-size: 12px; color: var(--ink-muted); display: block; margin-top: 2px; }
-  .history-qty { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 16px; }
+  .history-qty { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 16px; flex-shrink: 0; }
   .history-qty.in { color: var(--green); }
   .history-qty.out { color: var(--accent); }
 
+  /* ── RESPONSIVE RESPONSIVITAS HANDPHONE (MAX 768px) ── */
   @media (max-width: 768px) {
-    .sidebar { display: none; }
-    .main { margin-left: 0; }
-    .stats-grid { grid-template-columns: 1fr 1fr; }
+    .sidebar {
+      transform: translateX(-100%);
+    }
+    .sidebar.open {
+      transform: translateX(0);
+      box-shadow: 4px 0 24px rgba(0,0,0,0.2);
+    }
+    .sidebar-overlay.active {
+      display: block;
+    }
+    .main {
+      margin-left: 0;
+    }
+    .topbar {
+      flex-direction: column;
+      align-items: stretch;
+      padding: 12px 16px;
+      gap: 12px;
+    }
+    .topbar-left {
+      justify-content: space-between;
+      width: 100%;
+    }
+    .menu-toggle {
+      display: block;
+    }
+    .topbar-actions {
+      flex-direction: column;
+      width: 100%;
+      gap: 10px;
+    }
+    .search-box {
+      width: 100%;
+    }
+    .topbar-btns {
+      width: 100%;
+    }
+    .topbar-btns .btn {
+      flex: 1;
+      justify-content: center;
+      font-size: 13px;
+      padding: 9px 8px;
+    }
+    .content {
+      padding: 16px;
+    }
+    .stats-grid {
+      grid-template-columns: 1fr;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .table-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 16px;
+    }
+    .filter-tabs {
+      width: 100%;
+      overflow-x: auto;
+      padding-bottom: 4px;
+      -webkit-overflow-scrolling: touch;
+    }
+    .filter-tab {
+      white-space: nowrap;
+    }
+    .form-row {
+      grid-template-columns: 1fr;
+      gap: 0;
+    }
+    .modal-body {
+      padding: 16px 20px;
+    }
+  }
+
+  @media (max-width: 420px) {
+    .topbar-btns .btn .btn-text {
+      display: none; /* Menyembunyikan teks tombol di layar ekstra kecil agar muat */
+    }
+    .topbar-btns .btn i {
+      margin: 0;
+      font-size: 16px;
+    }
   }
 </style>
 </head>
 <body>
 
-<!-- Firebase terhubung otomatis — tidak perlu setup overlay -->
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
 
-<!-- Sidebar -->
 <div class="sidebar">
   <div class="sidebar-logo">
     <h1>Print<span>Stock</span></h1>
@@ -446,22 +564,27 @@
   </div>
 </div>
 
-<!-- Main -->
 <div class="main">
   <div class="topbar">
-    <div class="topbar-title" id="pageTitle">Dashboard</div>
-    <div class="search-box">
-      <i class="fas fa-search"></i>
-      <input type="text" placeholder="Cari barang..." id="searchInput" oninput="handleSearch()">
+    <div class="topbar-left">
+      <button class="menu-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+      <div class="topbar-title" id="pageTitle">Dashboard</div>
     </div>
-    <button class="btn btn-secondary" onclick="exportCSV()"><i class="fas fa-file-csv"></i> Export</button>
-    <button class="btn btn-secondary" onclick="openPrintModal()"><i class="fas fa-print"></i> Cetak Laporan</button>
-    <button class="btn btn-primary" onclick="openAddModal()"><i class="fas fa-plus"></i> Tambah Barang</button>
+    <div class="topbar-actions">
+      <div class="search-box">
+        <i class="fas fa-search"></i>
+        <input type="text" placeholder="Cari barang..." id="searchInput" oninput="handleSearch()">
+      </div>
+      <div class="topbar-btns">
+        <button class="btn btn-secondary" onclick="exportCSV()"><i class="fas fa-file-csv"></i> <span class="btn-text">Export</span></button>
+        <button class="btn btn-secondary" onclick="openPrintModal()"><i class="fas fa-print"></i> <span class="btn-text">Cetak</span></button>
+        <button class="btn btn-primary" onclick="openAddModal()"><i class="fas fa-plus"></i> <span class="btn-text">Tambah</span></button>
+      </div>
+    </div>
   </div>
 
   <div class="content">
 
-    <!-- DASHBOARD PAGE -->
     <div class="page active" id="pageDashboard">
       <div class="stats-grid">
         <div class="stat-card orange">
@@ -482,7 +605,6 @@
           <div class="stat-value" id="statLow">0</div>
           <div class="stat-sub">perlu restock</div>
         </div>
-
       </div>
 
       <div class="table-section">
@@ -496,7 +618,7 @@
             <div class="filter-tab" onclick="filterCat('Mesin',this)">Mesin</div>
           </div>
         </div>
-        <div id="tableWrap">
+        <div id="tableWrap" class="table-responsive">
           <table>
             <thead>
               <tr>
@@ -516,28 +638,28 @@
       </div>
     </div>
 
-    <!-- STOK PAGE -->
     <div class="page" id="pageStok">
       <div class="table-section">
         <div class="table-header">
           <h2>Data Stok Lengkap</h2>
           <button class="btn btn-secondary btn-sm" onclick="openAddModal()"><i class="fas fa-plus"></i> Tambah</button>
         </div>
-        <table>
-          <thead>
-            <tr>
-              <th>Kode</th><th>Barang</th><th>Kategori</th><th>Stok</th>
-              <th>Min Stok</th><th>Aksi</th>
-            </tr>
-          </thead>
-          <tbody id="tableBodyFull">
-            <tr class="loading-row"><td colspan="6"><div class="spinner"></div><p>Memuat data...</p></td></tr>
-          </tbody>
-        </table>
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Kode</th><th>Barang</th><th>Kategori</th><th>Stok</th>
+                <th>Min Stok</th><th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="tableBodyFull">
+              <tr class="loading-row"><td colspan="6"><div class="spinner"></div><p>Memuat data...</p></td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
 
-    <!-- RIWAYAT PAGE -->
     <div class="page" id="pageRiwayat">
       <div class="table-section">
         <div class="table-header">
@@ -550,26 +672,23 @@
       </div>
     </div>
 
-    <!-- LOW STOCK PAGE -->
     <div class="page" id="pageLow">
       <div class="table-section">
         <div class="table-header">
           <h2>⚠️ Stok Menipis / Habis</h2>
         </div>
-        <table>
-          <thead>
-            <tr><th>Barang</th><th>Stok Saat Ini</th><th>Minimum</th><th>Kekurangan</th><th>Aksi</th></tr>
-          </thead>
-          <tbody id="tableBodyLow"></tbody>
-        </table>
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr><th>Barang</th><th>Stok Saat Ini</th><th>Minimum</th><th>Kekurangan</th><th>Aksi</th></tr>
+            </thead>
+            <tbody id="tableBodyLow"></tbody>
+          </table>
+        </div>
       </div>
     </div>
 
-  </div><!-- /content -->
-</div><!-- /main -->
-
-<!-- Add/Edit Modal -->
-<div class="modal-overlay" id="itemModal">
+  </div></div><div class="modal-overlay" id="itemModal">
   <div class="modal">
     <div class="modal-header">
       <h3 id="modalTitle">Tambah Barang</h3>
@@ -631,7 +750,6 @@
   </div>
 </div>
 
-<!-- Stok Adjust Modal -->
 <div class="modal-overlay" id="adjustModal">
   <div class="modal" style="max-width:380px">
     <div class="modal-header">
@@ -665,10 +783,8 @@
   </div>
 </div>
 
-<!-- Toasts -->
 <div class="toast-wrap" id="toastWrap"></div>
 
-<!-- Print Options Modal -->
 <div class="modal-overlay" id="printModal">
   <div class="modal" style="max-width:460px">
     <div class="modal-header">
@@ -737,19 +853,23 @@ const catColors = {
 
 // ── INIT ──
 window.addEventListener('load', () => {
-  // Langsung connect Firebase — data akan datang dari onSnapshot
-  // Tidak load localStorage dulu supaya tidak tumpang tindih dengan Firestore
   connectFirebase();
 });
 
+// Responsive Mobile Menu Drawer Toggle
+function toggleSidebar() {
+  const sidebar = document.querySelector('.sidebar');
+  const overlay = document.getElementById('sidebarOverlay');
+  sidebar.classList.toggle('open');
+  overlay.classList.toggle('active');
+}
+
 function loadLocal() {
-  // Hanya dipakai saat Firebase offline/gagal
   try {
     const stored = localStorage.getItem('printstock_items');
     const storedHist = localStorage.getItem('printstock_history');
     if (stored) items = JSON.parse(stored);
     if (storedHist) history = JSON.parse(storedHist);
-    // Jangan seed sample data — biarkan Firestore yang jadi sumber kebenaran
   } catch(e) { items = []; history = []; }
 }
 
@@ -772,9 +892,9 @@ function saveLocal() {
   localStorage.setItem('printstock_history', JSON.stringify(history));
 }
 
-// ── FIREBASE ──
+// ── FIREBASE CONFIG ──
 const FIREBASE_CONFIG = {
- apiKey: "AIzaSyCNzijiCyGRiLt98cRB4j_HaLQ38UOnyJk",
+  apiKey: "AIzaSyCNzijiCyGRiLt98cRB4j_HaLQ38UOnyJk",
   authDomain: "testtttt-69823.firebaseapp.com",
   projectId: "testtttt-69823",
   storageBucket: "testtttt-69823.firebasestorage.app",
@@ -792,7 +912,6 @@ function connectFirebase() {
   } catch(e) {
     toast('Koneksi Firebase gagal: ' + e.message, 'error');
     setSyncStatus('error', 'Koneksi Gagal');
-    // Fallback: load dari localStorage jika Firebase gagal
     loadLocal();
     updateAll();
   }
@@ -801,7 +920,6 @@ function connectFirebase() {
 function startFirebaseSync() {
   if (unsubscribe) unsubscribe();
 
-  // Tampilkan loading di tabel
   const tbodies = ['tableBody','tableBodyFull'];
   tbodies.forEach(id => {
     const el = document.getElementById(id);
@@ -822,7 +940,6 @@ function startFirebaseSync() {
   }, err => {
     setSyncStatus('error', 'Error: ' + err.code);
     toast('Sync error: ' + err.message, 'error');
-    // Fallback ke localStorage jika snapshot gagal
     loadLocal();
     updateAll();
   });
@@ -836,7 +953,6 @@ function startFirebaseSync() {
 }
 
 async function saveToFirebase(item, isNew) {
-  // Fungsi ini sekarang hanya sebagai fallback — CRUD utama langsung di fungsi masing-masing
   if (!db) return;
   if (isNew) {
     const ref = await db.collection('items').add(item);
@@ -862,17 +978,17 @@ function skipFirebase() {
 }
 
 function showSetup() {
-  toast('Firebase sudah terhubung ke project: stokbarang-e3f2c', 'info');
+  toast('Firebase sudah terhubung ke project: testtttt-69823', 'info');
 }
 
 function setSyncStatus(type, text) {
   const dot = document.getElementById('syncDot');
   const txt = document.getElementById('syncText');
-  dot.className = 'sync-dot ' + type;
-  txt.textContent = text;
+  if (dot && txt) {
+    dot.className = 'sync-dot ' + type;
+    txt.textContent = text;
+  }
 }
-
-
 
 // ── PAGES ──
 function showPage(page, navEl) {
@@ -884,6 +1000,14 @@ function showPage(page, navEl) {
   document.getElementById('pageTitle').textContent = titles[page]||'';
   if (page==='riwayat') updateHistory();
   if (page==='low') updateLowStock();
+  
+  // Sembunyikan sidebar otomatis setelah klik menu di HP
+  const sidebar = document.querySelector('.sidebar');
+  const overlay = document.getElementById('sidebarOverlay');
+  if (sidebar.classList.contains('open')) {
+    sidebar.classList.remove('open');
+    overlay.classList.remove('active');
+  }
 }
 function cap(s) { return s.charAt(0).toUpperCase()+s.slice(1); }
 
@@ -1086,7 +1210,6 @@ async function saveItem() {
   closeModal();
 
   if (editId) {
-    // UPDATE — kirim ke Firestore, onSnapshot akan update tampilan
     data.id = editId;
     if (db) {
       try {
@@ -1098,14 +1221,12 @@ async function saveItem() {
         setSyncStatus('error', 'Gagal simpan');
       }
     } else {
-      // Offline fallback
       const idx = items.findIndex(i => i.id === editId);
       if (idx >= 0) items[idx] = data;
       saveLocal(); updateAll();
       toast('Barang diperbarui (offline)', 'info');
     }
   } else {
-    // TAMBAH BARU — biarkan Firestore generate ID, onSnapshot otomatis update tampilan
     if (db) {
       try {
         setSyncStatus('syncing', 'Menyimpan...');
@@ -1116,7 +1237,6 @@ async function saveItem() {
         setSyncStatus('error', 'Gagal simpan');
       }
     } else {
-      // Offline fallback
       data.id = Date.now().toString();
       items.push(data);
       saveLocal(); updateAll();
@@ -1140,7 +1260,6 @@ async function deleteItem(id) {
       setSyncStatus('error', 'Gagal hapus');
     }
   } else {
-    // Offline fallback
     items = items.filter(i => i.id !== id);
     saveLocal(); updateAll();
     toast('Barang dihapus (offline)', 'info');
@@ -1187,9 +1306,7 @@ async function saveAdjust() {
   if (db) {
     try {
       setSyncStatus('syncing', 'Menyimpan stok...');
-      // Update stok di Firestore (onSnapshot akan update tampilan otomatis)
       await db.collection('items').doc(id).set(updatedItem, {merge: true});
-      // Simpan riwayat ke Firestore
       await db.collection('history').add(entry);
       toast(`Stok diperbarui: ${item.name} → ${newStock} ${item.unit}`, 'success');
     } catch(e) {
@@ -1197,7 +1314,6 @@ async function saveAdjust() {
       setSyncStatus('error', 'Gagal simpan');
     }
   } else {
-    // Offline fallback
     const idx = items.findIndex(i => i.id === id);
     items[idx] = updatedItem;
     history.unshift({id: Date.now().toString(), ...entry});
@@ -1206,7 +1322,7 @@ async function saveAdjust() {
   }
 }
 
-// ── EXPORT ──
+// ── EXPORT CSV ──
 function exportCSV() {
   const header = ['Kode','Nama','Kategori','Stok','Satuan','Min Stok','Status'];
   const rows = items.map(i=>[
@@ -1250,7 +1366,7 @@ document.getElementById('itemModal').addEventListener('click', e => { if(e.targe
 document.getElementById('adjustModal').addEventListener('click', e => { if(e.target===e.currentTarget) document.getElementById('adjustModal').classList.remove('active'); });
 document.getElementById('printModal').addEventListener('click', e => { if(e.target===e.currentTarget) document.getElementById('printModal').classList.remove('active'); });
 
-// ── PRINT ──
+// ── PRINT LAPORAN ──
 function openPrintModal() {
   document.getElementById('printModal').classList.add('active');
 }
@@ -1263,13 +1379,11 @@ function doPrint() {
 
   let data = [...items];
 
-  // filter
   if (filter === 'aman')    data = data.filter(i => getStatus(i) === 'aman');
   if (filter === 'menipis') data = data.filter(i => getStatus(i) === 'menipis');
   if (filter === 'habis')   data = data.filter(i => getStatus(i) === 'habis');
   if (filter === 'notaman') data = data.filter(i => getStatus(i) !== 'aman');
 
-  // sort
   if (sortBy === 'name')       data.sort((a,b) => a.name.localeCompare(b.name));
   if (sortBy === 'category')   data.sort((a,b) => a.category.localeCompare(b.category));
   if (sortBy === 'stock_asc')  data.sort((a,b) => a.stock - b.stock);
@@ -1321,8 +1435,6 @@ function doPrint() {
 <style>
   *{margin:0;padding:0;box-sizing:border-box}
   body{font-family:'DM Sans',sans-serif;font-size:12px;color:#111;background:white;padding:0}
-  
-  /* Header */
   .report-header{padding:28px 32px 20px;border-bottom:3px solid #e8420a;display:flex;align-items:flex-start;justify-content:space-between}
   .logo-wrap h1{font-family:'Syne',sans-serif;font-size:26px;font-weight:800;color:#0f0f0f;letter-spacing:-0.5px}
   .logo-wrap h1 span{color:#e8420a}
@@ -1331,8 +1443,6 @@ function doPrint() {
   .report-meta .report-title{font-family:'Syne',sans-serif;font-size:18px;font-weight:700;color:#111;margin-bottom:4px}
   .report-meta .store-name{font-size:13px;font-weight:500;color:#444;margin-bottom:6px}
   .report-meta .date-info{font-size:11px;color:#888}
-
-  /* Summary cards */
   .summary{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;padding:16px 32px;background:#f8f6f1;border-bottom:1px solid #e5e5e5}
   .sum-card{background:white;border-radius:8px;padding:10px 12px;border:1px solid #e5e5e5}
   .sum-card .label{font-size:9px;text-transform:uppercase;letter-spacing:0.8px;color:#888;font-weight:600;margin-bottom:4px}
@@ -1343,8 +1453,6 @@ function doPrint() {
   .sum-card.green  .value{color:#166534}
   .sum-card.gold   .value{color:#92400e}
   .sum-card.red    .value{color:#991b1b}
-
-  /* Table */
   .table-wrap{padding:20px 32px}
   .table-label{font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:#0f0f0f;margin-bottom:10px;display:flex;align-items:center;gap:8px}
   .table-label::after{content:'';flex:1;height:1px;background:#e5e5e5}
@@ -1363,13 +1471,9 @@ function doPrint() {
   .stock-num{font-weight:700;font-size:13px;min-width:28px}
   .mini-bar{flex:1;height:4px;background:#eee;border-radius:2px;overflow:hidden;min-width:40px}
   .status-pill{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;padding:3px 8px;border-radius:10px;white-space:nowrap}
-
-  /* Footer */
   .report-footer{padding:14px 32px;border-top:1px solid #e5e5e5;display:flex;justify-content:space-between;align-items:center;background:#f8f6f1}
   .report-footer span{font-size:10px;color:#aaa}
   .report-footer strong{color:#555}
-
-  /* Empty */
   .empty-print{text-align:center;padding:40px;color:#aaa;font-size:13px}
 
   @media print {
@@ -1461,8 +1565,6 @@ function doPrint() {
   document.getElementById('printModal').classList.remove('active');
   toast('Laporan siap dicetak!', 'success');
 }
-
-// Firebase terhubung otomatis via FIREBASE_CONFIG yang sudah di-hardcode
 </script>
 </body>
 </html>
