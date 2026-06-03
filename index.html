@@ -1,0 +1,1514 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PrintStock — Manajemen Stok Digital Printing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+
+<style>
+  :root {
+    --ink: #0f0f0f;
+    --ink-soft: #3a3a3a;
+    --ink-muted: #7a7a7a;
+    --paper: #f8f6f1;
+    --paper-warm: #f2ede4;
+    --paper-card: #ffffff;
+    --accent: #e8420a;
+    --accent-light: #fff0ec;
+    --accent-dark: #b53208;
+    --cyan: #00b4c8;
+    --cyan-light: #e6f9fb;
+    --gold: #c8920a;
+    --gold-light: #fdf6e3;
+    --green: #2a9d54;
+    --green-light: #e8f7ef;
+    --border: rgba(15,15,15,0.1);
+    --border-strong: rgba(15,15,15,0.2);
+    --shadow-soft: 0 2px 16px rgba(0,0,0,0.07);
+    --shadow-card: 0 4px 24px rgba(0,0,0,0.09);
+    --shadow-hover: 0 8px 32px rgba(0,0,0,0.14);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    min-height: 100vh;
+    font-size: 15px;
+  }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    position: fixed; left: 0; top: 0; bottom: 0;
+    width: 260px;
+    background: var(--ink);
+    color: white;
+    display: flex; flex-direction: column;
+    z-index: 100;
+    border-right: 1px solid rgba(255,255,255,0.06);
+  }
+
+  .sidebar-logo {
+    padding: 28px 24px 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+  .sidebar-logo h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: 22px; font-weight: 800;
+    letter-spacing: -0.5px;
+    color: white;
+  }
+  .sidebar-logo h1 span { color: var(--accent); }
+  .sidebar-logo p { font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 3px; letter-spacing: 0.5px; text-transform: uppercase; }
+
+  .sidebar-sync-status {
+    margin: 12px 20px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.08);
+    color: rgba(255,255,255,0.6);
+    transition: all 0.3s;
+  }
+  .sync-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: #666; flex-shrink: 0;
+    transition: background 0.3s;
+  }
+  .sync-dot.connected { background: #4ade80; box-shadow: 0 0 6px rgba(74,222,128,0.5); }
+  .sync-dot.syncing { background: var(--gold); animation: pulse 1s infinite; }
+  .sync-dot.error { background: #f87171; }
+
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  .sidebar-nav { flex: 1; padding: 16px 0; overflow-y: auto; }
+
+  .nav-section-label {
+    font-size: 10px; font-weight: 600; letter-spacing: 1.5px;
+    text-transform: uppercase; color: rgba(255,255,255,0.25);
+    padding: 12px 24px 6px;
+  }
+
+  .nav-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 11px 24px;
+    cursor: pointer; transition: all 0.2s;
+    font-size: 14px; font-weight: 400;
+    color: rgba(255,255,255,0.6);
+    border-left: 2px solid transparent;
+  }
+  .nav-item:hover { background: rgba(255,255,255,0.05); color: white; }
+  .nav-item.active {
+    background: rgba(232,66,10,0.15);
+    color: white;
+    border-left-color: var(--accent);
+    font-weight: 500;
+  }
+  .nav-item i { width: 18px; text-align: center; font-size: 15px; }
+  .nav-badge {
+    margin-left: auto;
+    background: var(--accent);
+    color: white; font-size: 10px; font-weight: 700;
+    padding: 2px 7px; border-radius: 20px;
+  }
+
+  .sidebar-footer {
+    padding: 16px 20px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+  }
+  .firebase-config-btn {
+    width: 100%;
+    padding: 10px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    color: rgba(255,255,255,0.6);
+    font-size: 12px; cursor: pointer;
+    display: flex; align-items: center; gap: 8px;
+    font-family: 'DM Sans', sans-serif;
+    transition: all 0.2s;
+  }
+  .firebase-config-btn:hover { background: rgba(255,255,255,0.1); color: white; }
+
+  /* ── MAIN ── */
+  .main {
+    margin-left: 260px;
+    min-height: 100vh;
+    display: flex; flex-direction: column;
+  }
+
+  /* ── TOPBAR ── */
+  .topbar {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(248,246,241,0.92);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 32px;
+    display: flex; align-items: center; gap: 16px;
+  }
+  .topbar-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 20px; font-weight: 700;
+    flex: 1;
+  }
+
+  .search-box {
+    display: flex; align-items: center; gap: 8px;
+    background: white;
+    border: 1px solid var(--border-strong);
+    border-radius: 10px;
+    padding: 9px 14px;
+    width: 260px;
+    transition: all 0.2s;
+  }
+  .search-box:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(232,66,10,0.1); }
+  .search-box i { color: var(--ink-muted); font-size: 14px; }
+  .search-box input {
+    border: none; outline: none; background: transparent;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px; color: var(--ink); width: 100%;
+  }
+  .search-box input::placeholder { color: var(--ink-muted); }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 9px 18px;
+    border-radius: 10px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px; font-weight: 500;
+    cursor: pointer; border: none; transition: all 0.2s;
+  }
+  .btn-primary { background: var(--accent); color: white; }
+  .btn-primary:hover { background: var(--accent-dark); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(232,66,10,0.35); }
+  .btn-secondary { background: white; color: var(--ink); border: 1px solid var(--border-strong); }
+  .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-danger { background: #fee2e2; color: #dc2626; }
+  .btn-danger:hover { background: #dc2626; color: white; }
+  .btn-sm { padding: 6px 12px; font-size: 13px; }
+
+  /* ── CONTENT ── */
+  .content { padding: 28px 32px; flex: 1; }
+
+  /* ── STATS ── */
+  .stats-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 16px; margin-bottom: 28px;
+  }
+  .stat-card {
+    background: white;
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    padding: 20px 22px;
+    position: relative; overflow: hidden;
+    transition: all 0.2s;
+  }
+  .stat-card:hover { box-shadow: var(--shadow-hover); transform: translateY(-2px); }
+  .stat-card::before {
+    content: ''; position: absolute;
+    top: 0; left: 0; right: 0; height: 3px;
+  }
+  .stat-card.orange::before { background: linear-gradient(90deg, var(--accent), #ff7043); }
+  .stat-card.cyan::before { background: linear-gradient(90deg, var(--cyan), #00e5ff); }
+  .stat-card.gold::before { background: linear-gradient(90deg, var(--gold), #ffd54f); }
+  .stat-card.green::before { background: linear-gradient(90deg, var(--green), #66bb6a); }
+
+  .stat-icon {
+    width: 40px; height: 40px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; margin-bottom: 14px;
+  }
+  .stat-card.orange .stat-icon { background: var(--accent-light); color: var(--accent); }
+  .stat-card.cyan .stat-icon { background: var(--cyan-light); color: var(--cyan); }
+  .stat-card.gold .stat-icon { background: var(--gold-light); color: var(--gold); }
+  .stat-card.green .stat-icon { background: var(--green-light); color: var(--green); }
+
+  .stat-label { font-size: 12px; color: var(--ink-muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat-value { font-family: 'Syne', sans-serif; font-size: 30px; font-weight: 800; margin: 4px 0 2px; line-height: 1; }
+  .stat-sub { font-size: 12px; color: var(--ink-muted); }
+
+  /* ── TABLE SECTION ── */
+  .table-section { background: white; border-radius: 16px; border: 1px solid var(--border); overflow: hidden; }
+  .table-header {
+    padding: 20px 24px;
+    display: flex; align-items: center; gap: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .table-header h2 { font-family: 'Syne', sans-serif; font-size: 17px; font-weight: 700; flex: 1; }
+
+  .filter-tabs { display: flex; gap: 4px; }
+  .filter-tab {
+    padding: 6px 14px; border-radius: 8px; font-size: 13px;
+    cursor: pointer; border: 1px solid transparent;
+    color: var(--ink-muted); font-weight: 500; transition: all 0.2s;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .filter-tab.active { background: var(--accent-light); color: var(--accent); border-color: rgba(232,66,10,0.2); }
+  .filter-tab:hover:not(.active) { background: var(--paper); }
+
+  table { width: 100%; border-collapse: collapse; }
+  thead tr { background: var(--paper); border-bottom: 1px solid var(--border); }
+  th {
+    padding: 12px 16px; text-align: left;
+    font-size: 11px; font-weight: 600; color: var(--ink-muted);
+    letter-spacing: 0.8px; text-transform: uppercase;
+  }
+  tbody tr { border-bottom: 1px solid var(--border); transition: background 0.15s; }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: #fafafa; }
+  td { padding: 13px 16px; font-size: 14px; }
+
+  .item-name { font-weight: 500; color: var(--ink); }
+  .item-code { font-size: 11px; color: var(--ink-muted); font-family: monospace; margin-top: 2px; }
+
+  .category-badge {
+    display: inline-block;
+    padding: 3px 10px; border-radius: 20px;
+    font-size: 11px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.3px;
+  }
+
+  .stock-bar-wrap { display: flex; align-items: center; gap: 10px; }
+  .stock-bar { height: 5px; border-radius: 3px; background: #eee; flex: 1; overflow: hidden; }
+  .stock-bar-fill { height: 100%; border-radius: 3px; transition: width 0.4s; }
+  .stock-number { font-size: 13px; font-weight: 600; min-width: 32px; text-align: right; }
+
+  .status-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 4px 10px; border-radius: 20px;
+    font-size: 11px; font-weight: 600;
+  }
+  .status-badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; }
+  .status-badge.aman { background: var(--green-light); color: var(--green); }
+  .status-badge.aman::before { background: var(--green); }
+  .status-badge.menipis { background: var(--gold-light); color: var(--gold); }
+  .status-badge.menipis::before { background: var(--gold); animation: pulse 1.5s infinite; }
+  .status-badge.habis { background: #fee2e2; color: #dc2626; }
+  .status-badge.habis::before { background: #dc2626; }
+
+  .action-btns { display: flex; gap: 6px; }
+
+  /* ── MODAL ── */
+  .modal-overlay {
+    display: none; position: fixed;
+    inset: 0; z-index: 200;
+    background: rgba(0,0,0,0.5);
+    backdrop-filter: blur(4px);
+    align-items: center; justify-content: center;
+  }
+  .modal-overlay.active { display: flex; }
+  .modal {
+    background: white; border-radius: 18px;
+    width: 100%; max-width: 540px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    animation: slideUp 0.3s ease;
+  }
+  @keyframes slideUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+  .modal-header {
+    padding: 24px 28px 0;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .modal-header h3 { font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 700; }
+  .modal-close {
+    width: 32px; height: 32px; border-radius: 8px;
+    border: 1px solid var(--border-strong);
+    background: white; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--ink-muted); font-size: 16px; transition: all 0.2s;
+  }
+  .modal-close:hover { background: #fee2e2; color: #dc2626; border-color: #dc2626; }
+  .modal-body { padding: 20px 28px; }
+  .modal-footer { padding: 0 28px 24px; display: flex; gap: 10px; justify-content: flex-end; }
+
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+  .form-group { margin-bottom: 14px; }
+  .form-group label { display: block; font-size: 12px; font-weight: 600; color: var(--ink-soft); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .form-control {
+    width: 100%; padding: 10px 13px;
+    border: 1.5px solid var(--border-strong);
+    border-radius: 10px; font-family: 'DM Sans', sans-serif;
+    font-size: 14px; color: var(--ink); background: white;
+    transition: all 0.2s; outline: none;
+  }
+  .form-control:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(232,66,10,0.1); }
+  select.form-control { cursor: pointer; }
+
+  /* ── TOAST ── */
+  .toast-wrap { position: fixed; bottom: 24px; right: 24px; z-index: 999; display: flex; flex-direction: column; gap: 8px; }
+  .toast {
+    background: var(--ink); color: white;
+    padding: 12px 18px; border-radius: 10px;
+    font-size: 13px; font-weight: 500;
+    display: flex; align-items: center; gap: 10px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+    animation: toastIn 0.3s ease;
+    max-width: 320px;
+  }
+  @keyframes toastIn { from{opacity:0;transform:translateX(20px)} to{opacity:1;transform:translateX(0)} }
+  .toast.success { border-left: 3px solid var(--green); }
+  .toast.error { border-left: 3px solid #dc2626; }
+  .toast.info { border-left: 3px solid var(--cyan); }
+
+  /* ── FIREBASE SETUP MODAL ── */
+  .setup-overlay {
+    display: flex; position: fixed; inset: 0; z-index: 300;
+    background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
+    align-items: center; justify-content: center;
+  }
+  .setup-modal {
+    background: white; border-radius: 20px;
+    width: 100%; max-width: 560px;
+    box-shadow: 0 24px 80px rgba(0,0,0,0.3);
+    padding: 32px;
+  }
+  .setup-modal h2 { font-family: 'Syne', sans-serif; font-size: 24px; font-weight: 800; margin-bottom: 8px; }
+  .setup-modal p { color: var(--ink-muted); font-size: 14px; margin-bottom: 24px; line-height: 1.6; }
+  .setup-tabs { display: flex; gap: 4px; background: var(--paper); border-radius: 10px; padding: 4px; margin-bottom: 20px; }
+  .setup-tab { flex: 1; padding: 8px; text-align: center; border-radius: 7px; cursor: pointer; font-size: 13px; font-weight: 500; color: var(--ink-muted); transition: all 0.2s; }
+  .setup-tab.active { background: white; color: var(--ink); box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
+  .code-block {
+    background: var(--ink); color: #e5e7eb;
+    border-radius: 10px; padding: 14px 16px;
+    font-family: monospace; font-size: 12px;
+    line-height: 1.6; margin-bottom: 16px;
+    white-space: pre-wrap; word-break: break-all;
+  }
+  .code-block .key { color: #93c5fd; }
+  .code-block .val { color: #86efac; }
+  .skip-btn { background: transparent; border: 1.5px solid var(--border-strong); color: var(--ink-muted); }
+  .skip-btn:hover { border-color: var(--ink); color: var(--ink); }
+
+  /* ── LOADING ── */
+  .loading-row td { text-align: center; padding: 40px; color: var(--ink-muted); }
+  .spinner { display: inline-block; width: 24px; height: 24px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; margin-bottom: 8px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── EMPTY STATE ── */
+  .empty-state { padding: 60px; text-align: center; }
+  .empty-state i { font-size: 48px; color: var(--border-strong); margin-bottom: 16px; display: block; }
+  .empty-state h3 { font-family: 'Syne', sans-serif; font-size: 18px; margin-bottom: 8px; }
+  .empty-state p { color: var(--ink-muted); font-size: 14px; }
+
+  /* Pages */
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* Riwayat */
+  .history-list { }
+  .history-item {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 16px;
+  }
+  .history-item:last-child { border-bottom: none; }
+  .history-icon { width: 36px; height: 36px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; }
+  .history-icon.in { background: var(--green-light); color: var(--green); }
+  .history-icon.out { background: var(--accent-light); color: var(--accent); }
+  .history-icon.adj { background: var(--cyan-light); color: var(--cyan); }
+  .history-info { flex: 1; }
+  .history-info strong { font-weight: 500; font-size: 14px; }
+  .history-info span { font-size: 12px; color: var(--ink-muted); display: block; margin-top: 2px; }
+  .history-qty { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 16px; }
+  .history-qty.in { color: var(--green); }
+  .history-qty.out { color: var(--accent); }
+
+  @media (max-width: 768px) {
+    .sidebar { display: none; }
+    .main { margin-left: 0; }
+    .stats-grid { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Firebase Setup Modal -->
+<div class="setup-overlay" id="setupOverlay">
+  <div class="setup-modal">
+    <h2>🔥 Hubungkan Firebase</h2>
+    <p>Aplikasi ini tersinkronisasi secara real-time via Firebase Firestore. Masukkan konfigurasi Firebase project Anda, atau gunakan mode offline terlebih dahulu.</p>
+
+    <div class="setup-tabs">
+      <div class="setup-tab active" onclick="switchSetupTab(this,'config')">Masukkan Config</div>
+      <div class="setup-tab" onclick="switchSetupTab(this,'guide')">Cara Mendapatkan</div>
+    </div>
+
+    <div id="tabConfig">
+      <div class="form-row">
+        <div class="form-group">
+          <label>API Key</label>
+          <input class="form-control" id="fb_apiKey" placeholder="AIzaSy...">
+        </div>
+        <div class="form-group">
+          <label>Auth Domain</label>
+          <input class="form-control" id="fb_authDomain" placeholder="xxx.firebaseapp.com">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Project ID</label>
+          <input class="form-control" id="fb_projectId" placeholder="my-project-id">
+        </div>
+        <div class="form-group">
+          <label>App ID</label>
+          <input class="form-control" id="fb_appId" placeholder="1:xxx:web:xxx">
+        </div>
+      </div>
+      <div style="display:flex; gap:10px; margin-top:8px;">
+        <button class="btn btn-primary" onclick="connectFirebase()" style="flex:1"><i class="fas fa-fire"></i> Hubungkan Firebase</button>
+        <button class="btn skip-btn" onclick="skipFirebase()"><i class="fas fa-arrow-right"></i> Mode Offline</button>
+      </div>
+    </div>
+
+    <div id="tabGuide" style="display:none">
+      <ol style="font-size:13px; line-height:2; color:var(--ink-soft); padding-left:18px; margin-bottom:16px;">
+        <li>Buka <a href="https://console.firebase.google.com" target="_blank" style="color:var(--accent)">console.firebase.google.com</a></li>
+        <li>Buat project baru → tambahkan Web App</li>
+        <li>Aktifkan <strong>Firestore Database</strong> (mode test)</li>
+        <li>Salin config dari <em>Project Settings → Your Apps</em></li>
+        <li>Tempel di tab "Masukkan Config"</li>
+      </ol>
+      <div class="code-block"><span class="key">apiKey</span>: <span class="val">"AIzaSy..."</span>
+<span class="key">authDomain</span>: <span class="val">"project.firebaseapp.com"</span>
+<span class="key">projectId</span>: <span class="val">"my-project-id"</span>
+<span class="key">appId</span>: <span class="val">"1:xxx:web:xxx"</span></div>
+      <button class="btn skip-btn" onclick="skipFirebase()" style="width:100%"><i class="fas fa-arrow-right"></i> Lanjutkan Mode Offline</button>
+    </div>
+  </div>
+</div>
+
+<!-- Sidebar -->
+<div class="sidebar">
+  <div class="sidebar-logo">
+    <h1>Print<span>Stock</span></h1>
+    <p>Digital Printing Manager</p>
+  </div>
+
+  <div class="sidebar-sync-status" id="syncStatus">
+    <div class="sync-dot" id="syncDot"></div>
+    <span id="syncText">Menunggu koneksi...</span>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="nav-section-label">Menu Utama</div>
+    <div class="nav-item active" onclick="showPage('dashboard',this)">
+      <i class="fas fa-th-large"></i> Dashboard
+    </div>
+    <div class="nav-item" onclick="showPage('stok',this)">
+      <i class="fas fa-boxes"></i> Data Stok
+    </div>
+    <div class="nav-item" onclick="showPage('riwayat',this)">
+      <i class="fas fa-history"></i> Riwayat
+      <span class="nav-badge" id="histBadge">0</span>
+    </div>
+
+    <div class="nav-section-label">Laporan</div>
+    <div class="nav-item" onclick="showPage('low',this)">
+      <i class="fas fa-exclamation-triangle"></i> Stok Menipis
+      <span class="nav-badge" id="lowBadge" style="background:var(--gold)">0</span>
+    </div>
+  </nav>
+
+  <div class="sidebar-footer">
+    <button class="firebase-config-btn" onclick="showSetup()">
+      <i class="fas fa-cog"></i> Konfigurasi Firebase
+    </button>
+  </div>
+</div>
+
+<!-- Main -->
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-title" id="pageTitle">Dashboard</div>
+    <div class="search-box">
+      <i class="fas fa-search"></i>
+      <input type="text" placeholder="Cari barang..." id="searchInput" oninput="handleSearch()">
+    </div>
+    <button class="btn btn-secondary" onclick="exportCSV()"><i class="fas fa-file-csv"></i> Export</button>
+    <button class="btn btn-secondary" onclick="openPrintModal()"><i class="fas fa-print"></i> Cetak Laporan</button>
+    <button class="btn btn-primary" onclick="openAddModal()"><i class="fas fa-plus"></i> Tambah Barang</button>
+  </div>
+
+  <div class="content">
+
+    <!-- DASHBOARD PAGE -->
+    <div class="page active" id="pageDashboard">
+      <div class="stats-grid">
+        <div class="stat-card orange">
+          <div class="stat-icon"><i class="fas fa-layer-group"></i></div>
+          <div class="stat-label">Total Jenis</div>
+          <div class="stat-value" id="statTotal">0</div>
+          <div class="stat-sub">jenis barang</div>
+        </div>
+        <div class="stat-card cyan">
+          <div class="stat-icon"><i class="fas fa-cubes"></i></div>
+          <div class="stat-label">Total Stok</div>
+          <div class="stat-value" id="statStock">0</div>
+          <div class="stat-sub">unit tersedia</div>
+        </div>
+        <div class="stat-card gold">
+          <div class="stat-icon"><i class="fas fa-exclamation-triangle"></i></div>
+          <div class="stat-label">Stok Menipis</div>
+          <div class="stat-value" id="statLow">0</div>
+          <div class="stat-sub">perlu restock</div>
+        </div>
+
+      </div>
+
+      <div class="table-section">
+        <div class="table-header">
+          <h2>Semua Barang</h2>
+          <div class="filter-tabs">
+            <div class="filter-tab active" onclick="filterCat('all',this)">Semua</div>
+            <div class="filter-tab" onclick="filterCat('Bahan Baku',this)">Bahan Baku</div>
+            <div class="filter-tab" onclick="filterCat('Tinta',this)">Tinta</div>
+            <div class="filter-tab" onclick="filterCat('Finishing',this)">Finishing</div>
+            <div class="filter-tab" onclick="filterCat('Mesin',this)">Mesin</div>
+          </div>
+        </div>
+        <div id="tableWrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Barang</th>
+                <th>Kategori</th>
+                <th>Stok</th>
+                <th>Satuan</th>
+                <th>Status</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody">
+              <tr class="loading-row"><td colspan="6"><div class="spinner"></div><p>Memuat data...</p></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- STOK PAGE -->
+    <div class="page" id="pageStok">
+      <div class="table-section">
+        <div class="table-header">
+          <h2>Data Stok Lengkap</h2>
+          <button class="btn btn-secondary btn-sm" onclick="openAddModal()"><i class="fas fa-plus"></i> Tambah</button>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Kode</th><th>Barang</th><th>Kategori</th><th>Stok</th>
+              <th>Min Stok</th><th>Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="tableBodyFull">
+            <tr class="loading-row"><td colspan="6"><div class="spinner"></div><p>Memuat data...</p></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- RIWAYAT PAGE -->
+    <div class="page" id="pageRiwayat">
+      <div class="table-section">
+        <div class="table-header">
+          <h2>Riwayat Transaksi</h2>
+          <button class="btn btn-secondary btn-sm" onclick="clearHistory()"><i class="fas fa-trash"></i> Bersihkan</button>
+        </div>
+        <div class="history-list" id="historyList">
+          <div class="empty-state"><i class="fas fa-history"></i><h3>Belum ada riwayat</h3><p>Tambah atau ubah stok untuk melihat riwayat</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LOW STOCK PAGE -->
+    <div class="page" id="pageLow">
+      <div class="table-section">
+        <div class="table-header">
+          <h2>⚠️ Stok Menipis / Habis</h2>
+        </div>
+        <table>
+          <thead>
+            <tr><th>Barang</th><th>Stok Saat Ini</th><th>Minimum</th><th>Kekurangan</th><th>Aksi</th></tr>
+          </thead>
+          <tbody id="tableBodyLow"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+
+<!-- Add/Edit Modal -->
+<div class="modal-overlay" id="itemModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modalTitle">Tambah Barang</h3>
+      <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="editId">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Nama Barang *</label>
+          <input class="form-control" id="f_name" placeholder="e.g. Vinyl Glossy A3">
+        </div>
+        <div class="form-group">
+          <label>Kode Barang</label>
+          <input class="form-control" id="f_code" placeholder="e.g. VNL-001">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Kategori *</label>
+          <select class="form-control" id="f_category">
+            <option value="">-- Pilih --</option>
+            <option>Bahan Baku</option>
+            <option>Tinta</option>
+            <option>Finishing</option>
+            <option>Mesin</option>
+            <option>Alat</option>
+            <option>Lainnya</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Satuan</label>
+          <select class="form-control" id="f_unit">
+            <option>Roll</option><option>Lembar</option><option>Liter</option>
+            <option>Botol</option><option>Pak</option><option>Pcs</option>
+            <option>Meter</option><option>Set</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Stok Saat Ini *</label>
+          <input class="form-control" id="f_stock" type="number" min="0" placeholder="0">
+        </div>
+        <div class="form-group">
+          <label>Stok Minimum</label>
+          <input class="form-control" id="f_minStock" type="number" min="0" placeholder="5">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Catatan</label>
+        <textarea class="form-control" id="f_notes" rows="2" placeholder="Catatan tambahan..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">Batal</button>
+      <button class="btn btn-primary" onclick="saveItem()"><i class="fas fa-save"></i> Simpan</button>
+    </div>
+  </div>
+</div>
+
+<!-- Stok Adjust Modal -->
+<div class="modal-overlay" id="adjustModal">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-header">
+      <h3>Ubah Stok</h3>
+      <button class="modal-close" onclick="document.getElementById('adjustModal').classList.remove('active')"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <div id="adjustItemName" style="font-weight:600;font-size:16px;margin-bottom:16px;"></div>
+      <input type="hidden" id="adjustId">
+      <div class="form-group">
+        <label>Jenis</label>
+        <select class="form-control" id="adjType">
+          <option value="in">Stok Masuk (+)</option>
+          <option value="out">Stok Keluar (-)</option>
+          <option value="adj">Penyesuaian (=)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Jumlah</label>
+        <input class="form-control" id="adjQty" type="number" min="1" placeholder="0">
+      </div>
+      <div class="form-group">
+        <label>Keterangan</label>
+        <input class="form-control" id="adjNote" placeholder="Alasan perubahan...">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="document.getElementById('adjustModal').classList.remove('active')">Batal</button>
+      <button class="btn btn-primary" onclick="saveAdjust()"><i class="fas fa-check"></i> Simpan</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toasts -->
+<div class="toast-wrap" id="toastWrap"></div>
+
+<!-- Print Options Modal -->
+<div class="modal-overlay" id="printModal">
+  <div class="modal" style="max-width:460px">
+    <div class="modal-header">
+      <h3><i class="fas fa-print" style="color:var(--accent);margin-right:8px"></i>Cetak Laporan Stok</h3>
+      <button class="modal-close" onclick="document.getElementById('printModal').classList.remove('active')"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Judul Laporan</label>
+        <input class="form-control" id="print_title" value="Laporan Stok Barang" placeholder="Judul laporan...">
+      </div>
+      <div class="form-group">
+        <label>Nama Toko / Usaha</label>
+        <input class="form-control" id="print_store" placeholder="e.g. PrintShop Jogja">
+      </div>
+      <div class="form-group">
+        <label>Filter Cetak</label>
+        <select class="form-control" id="print_filter">
+          <option value="all">Semua Barang</option>
+          <option value="aman">Stok Aman Saja</option>
+          <option value="menipis">Stok Menipis Saja</option>
+          <option value="habis">Stok Habis Saja</option>
+          <option value="notaman">Menipis + Habis (Perlu Restock)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Urutkan Berdasarkan</label>
+        <select class="form-control" id="print_sort">
+          <option value="name">Nama (A-Z)</option>
+          <option value="category">Kategori</option>
+          <option value="stock_asc">Stok Terkecil</option>
+          <option value="stock_desc">Stok Terbesar</option>
+        </select>
+      </div>
+      <div style="background:var(--paper);border-radius:10px;padding:12px 14px;font-size:13px;color:var(--ink-muted);display:flex;align-items:center;gap:8px;">
+        <i class="fas fa-info-circle" style="color:var(--cyan)"></i>
+        Laporan akan terbuka di tab baru, siap untuk dicetak atau disimpan sebagai PDF.
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="document.getElementById('printModal').classList.remove('active')">Batal</button>
+      <button class="btn btn-primary" onclick="doPrint()"><i class="fas fa-print"></i> Cetak Sekarang</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── STATE ──
+let db = null;
+let items = [];
+let history = [];
+let unsubscribe = null;
+let searchQuery = '';
+let catFilter = 'all';
+let isFirebaseConnected = false;
+
+// ── CATEGORY COLORS ──
+const catColors = {
+  'Bahan Baku': {bg:'#e0f2fe',text:'#0369a1'},
+  'Tinta':      {bg:'#fce7f3',text:'#9d174d'},
+  'Finishing':  {bg:'#f3e8ff',text:'#6b21a8'},
+  'Mesin':      {bg:'#dcfce7',text:'#15803d'},
+  'Alat':       {bg:'#fef3c7',text:'#92400e'},
+  'Lainnya':    {bg:'#f1f5f9',text:'#475569'},
+};
+
+// ── INIT ──
+window.addEventListener('load', () => {
+  // try load from localStorage first
+  loadLocal();
+  updateAll();
+});
+
+function loadLocal() {
+  try {
+    const stored = localStorage.getItem('printstock_items');
+    const storedHist = localStorage.getItem('printstock_history');
+    if (stored) items = JSON.parse(stored);
+    if (storedHist) history = JSON.parse(storedHist);
+    if (items.length === 0) seedSampleData();
+  } catch(e) { seedSampleData(); }
+}
+
+function seedSampleData() {
+  items = [
+    {id:'1', code:'VNL-001', name:'Vinyl Glossy A3', category:'Bahan Baku', unit:'Roll', stock:15, minStock:5, notes:'', updatedAt: new Date().toISOString()},
+    {id:'2', code:'VNL-002', name:'Vinyl Matte 60cm', category:'Bahan Baku', unit:'Roll', stock:3, minStock:5, notes:'', updatedAt: new Date().toISOString()},
+    {id:'3', code:'TNT-001', name:'Tinta Epson Cyan', category:'Tinta', unit:'Botol', stock:8, minStock:10, notes:'', updatedAt: new Date().toISOString()},
+    {id:'4', code:'TNT-002', name:'Tinta Epson Magenta', category:'Tinta', unit:'Botol', stock:0, minStock:10, notes:'', updatedAt: new Date().toISOString()},
+    {id:'5', code:'FNS-001', name:'Laminating Glossy', category:'Finishing', unit:'Roll', stock:6, minStock:3, notes:'', updatedAt: new Date().toISOString()},
+    {id:'6', code:'FNS-002', name:'Eyelet / Mata Ayam', category:'Finishing', unit:'Pak', stock:12, minStock:5, notes:'', updatedAt: new Date().toISOString()},
+    {id:'7', code:'BBK-001', name:'Banner 260gsm 150cm', category:'Bahan Baku', unit:'Roll', stock:2, minStock:4, notes:'', updatedAt: new Date().toISOString()},
+    {id:'8', code:'ALT-001', name:'Cutter Besar', category:'Alat', unit:'Pcs', stock:5, minStock:2, notes:'', updatedAt: new Date().toISOString()},
+  ];
+  saveLocal();
+}
+
+function saveLocal() {
+  localStorage.setItem('printstock_items', JSON.stringify(items));
+  localStorage.setItem('printstock_history', JSON.stringify(history));
+}
+
+// ── FIREBASE ──
+function connectFirebase() {
+  const cfg = {
+    apiKey: document.getElementById('fb_apiKey').value.trim(),
+    authDomain: document.getElementById('fb_authDomain').value.trim(),
+    projectId: document.getElementById('fb_projectId').value.trim(),
+    appId: document.getElementById('fb_appId').value.trim(),
+  };
+  if (!cfg.apiKey || !cfg.projectId) { toast('Isi API Key dan Project ID', 'error'); return; }
+
+  try {
+    if (!firebase.apps.length) firebase.initializeApp(cfg);
+    db = firebase.firestore();
+    localStorage.setItem('fb_config', JSON.stringify(cfg));
+    document.getElementById('setupOverlay').style.display = 'none';
+    startFirebaseSync();
+    toast('Firebase terhubung!', 'success');
+  } catch(e) {
+    toast('Koneksi gagal: ' + e.message, 'error');
+  }
+}
+
+function startFirebaseSync() {
+  setSyncStatus('syncing','Mensinkronisasi...');
+  if (unsubscribe) unsubscribe();
+
+  unsubscribe = db.collection('items').onSnapshot(snapshot => {
+    items = snapshot.docs.map(d => ({id:d.id, ...d.data()}));
+    saveLocal();
+    updateAll();
+    setSyncStatus('connected','Tersinkronisasi');
+    isFirebaseConnected = true;
+  }, err => {
+    setSyncStatus('error','Error: '+err.code);
+    toast('Sync error: '+err.message,'error');
+  });
+
+  db.collection('history').orderBy('date','desc').limit(100).onSnapshot(snap => {
+    history = snap.docs.map(d => ({id:d.id, ...d.data()}));
+    updateHistory();
+  });
+}
+
+async function saveToFirebase(item, isNew) {
+  if (!db) return;
+  setSyncStatus('syncing','Menyimpan...');
+  if (isNew) {
+    const ref = await db.collection('items').add(item);
+    return ref.id;
+  } else {
+    await db.collection('items').doc(item.id).set(item, {merge:true});
+  }
+}
+
+async function deleteFromFirebase(id) {
+  if (!db) return;
+  await db.collection('items').doc(id).delete();
+}
+
+async function addHistoryToFirebase(entry) {
+  if (!db) return;
+  await db.collection('history').add(entry);
+}
+
+function skipFirebase() {
+  document.getElementById('setupOverlay').style.display = 'none';
+  setSyncStatus('error','Mode Offline');
+  updateAll();
+}
+
+function showSetup() {
+  const saved = localStorage.getItem('fb_config');
+  if (saved) {
+    try {
+      const cfg = JSON.parse(saved);
+      document.getElementById('fb_apiKey').value = cfg.apiKey || '';
+      document.getElementById('fb_authDomain').value = cfg.authDomain || '';
+      document.getElementById('fb_projectId').value = cfg.projectId || '';
+      document.getElementById('fb_appId').value = cfg.appId || '';
+    } catch(e){}
+  }
+  document.getElementById('setupOverlay').style.display = 'flex';
+}
+
+function setSyncStatus(type, text) {
+  const dot = document.getElementById('syncDot');
+  const txt = document.getElementById('syncText');
+  dot.className = 'sync-dot ' + type;
+  txt.textContent = text;
+}
+
+function switchSetupTab(el, tab) {
+  document.querySelectorAll('.setup-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tabConfig').style.display = tab==='config'?'block':'none';
+  document.getElementById('tabGuide').style.display = tab==='guide'?'block':'none';
+}
+
+// ── PAGES ──
+function showPage(page, navEl) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page'+cap(page)).classList.add('active');
+  navEl.classList.add('active');
+  const titles = {dashboard:'Dashboard',stok:'Data Stok',riwayat:'Riwayat Transaksi',low:'Stok Menipis'};
+  document.getElementById('pageTitle').textContent = titles[page]||'';
+  if (page==='riwayat') updateHistory();
+  if (page==='low') updateLowStock();
+}
+function cap(s) { return s.charAt(0).toUpperCase()+s.slice(1); }
+
+// ── RENDER ──
+function updateAll() {
+  renderTable();
+  renderTableFull();
+  updateStats();
+  updateBadges();
+}
+
+function getStatus(item) {
+  if (item.stock <= 0) return 'habis';
+  if (item.stock <= (item.minStock || 5)) return 'menipis';
+  return 'aman';
+}
+
+function getStatusLabel(status) {
+  return {aman:'Aman',menipis:'Menipis',habis:'Habis'}[status];
+}
+
+function stockBarColor(item) {
+  const s = getStatus(item);
+  return {aman:'#2a9d54',menipis:'#c8920a',habis:'#dc2626'}[s];
+}
+
+function stockBarWidth(item) {
+  const max = Math.max(item.minStock*3||30, item.stock+10);
+  return Math.min(100, (item.stock/max)*100)+'%';
+}
+
+function getFiltered() {
+  return items.filter(i => {
+    const matchSearch = !searchQuery || i.name.toLowerCase().includes(searchQuery) || (i.code||'').toLowerCase().includes(searchQuery);
+    const matchCat = catFilter==='all' || i.category===catFilter;
+    return matchSearch && matchCat;
+  });
+}
+
+function renderTable() {
+  const filtered = getFiltered();
+  const tbody = document.getElementById('tableBody');
+  if (!filtered.length) {
+    tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><i class="fas fa-box-open"></i><h3>Tidak ada barang</h3><p>Tambah barang pertama Anda</p></div></td></tr>`;
+    return;
+  }
+  const cc = catColors;
+  tbody.innerHTML = filtered.map(item => {
+    const st = getStatus(item);
+    const col = cc[item.category]||cc['Lainnya'];
+    return `<tr>
+      <td>
+        <div class="item-name">${item.name}</div>
+        <div class="item-code">${item.code||'—'}</div>
+      </td>
+      <td><span class="category-badge" style="background:${col.bg};color:${col.text}">${item.category}</span></td>
+      <td>
+        <div class="stock-bar-wrap">
+          <div class="stock-bar"><div class="stock-bar-fill" style="width:${stockBarWidth(item)};background:${stockBarColor(item)}"></div></div>
+          <span class="stock-number" style="color:${stockBarColor(item)}">${item.stock}</span>
+        </div>
+      </td>
+      <td style="color:var(--ink-muted);font-size:13px">${item.unit}</td>
+      <td><span class="status-badge ${st}">${getStatusLabel(st)}</span></td>
+      <td>
+        <div class="action-btns">
+          <button class="btn btn-secondary btn-sm" onclick="openAdjust('${item.id}')" title="Ubah stok"><i class="fas fa-edit"></i></button>
+          <button class="btn btn-secondary btn-sm" onclick="openEdit('${item.id}')" title="Edit data"><i class="fas fa-pen"></i></button>
+          <button class="btn btn-danger btn-sm" onclick="deleteItem('${item.id}')" title="Hapus"><i class="fas fa-trash"></i></button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function renderTableFull() {
+  const tbody = document.getElementById('tableBodyFull');
+  if (!items.length) { tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><i class="fas fa-box-open"></i><h3>Tidak ada barang</h3></div></td></tr>`; return; }
+  const cc = catColors;
+  tbody.innerHTML = items.map(item => {
+    const st = getStatus(item);
+    const col = cc[item.category]||cc['Lainnya'];
+    return `<tr>
+      <td style="font-family:monospace;font-size:12px;color:var(--ink-muted)">${item.code||'—'}</td>
+      <td class="item-name">${item.name}</td>
+      <td><span class="category-badge" style="background:${col.bg};color:${col.text}">${item.category}</span></td>
+      <td><span style="font-weight:600;color:${stockBarColor(item)}">${item.stock}</span> ${item.unit}</td>
+      <td style="color:var(--ink-muted)">${item.minStock||5} ${item.unit}</td>
+      <td>
+        <div class="action-btns">
+          <button class="btn btn-secondary btn-sm" onclick="openAdjust('${item.id}')"><i class="fas fa-exchange-alt"></i></button>
+          <button class="btn btn-secondary btn-sm" onclick="openEdit('${item.id}')"><i class="fas fa-pen"></i></button>
+          <button class="btn btn-danger btn-sm" onclick="deleteItem('${item.id}')"><i class="fas fa-trash"></i></button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function updateStats() {
+  document.getElementById('statTotal').textContent = items.length;
+  document.getElementById('statStock').textContent = items.reduce((a,i)=>a+Number(i.stock||0),0).toLocaleString('id');
+  const low = items.filter(i=>getStatus(i)!=='aman').length;
+  document.getElementById('statLow').textContent = low;
+}
+
+function updateBadges() {
+  const low = items.filter(i=>getStatus(i)!=='aman').length;
+  document.getElementById('lowBadge').textContent = low;
+  document.getElementById('histBadge').textContent = history.length;
+}
+
+function updateHistory() {
+  const list = document.getElementById('historyList');
+  if (!history.length) {
+    list.innerHTML = `<div class="empty-state"><i class="fas fa-history"></i><h3>Belum ada riwayat</h3><p>Tambah atau ubah stok untuk melihat riwayat</p></div>`;
+    return;
+  }
+  list.innerHTML = history.slice(0,50).map(h => `
+    <div class="history-item">
+      <div class="history-icon ${h.type}"><i class="fas fa-${h.type==='in'?'arrow-down':h.type==='out'?'arrow-up':'sliders-h'}"></i></div>
+      <div class="history-info">
+        <strong>${h.itemName}</strong>
+        <span>${h.note||''} · ${formatDate(h.date)}</span>
+      </div>
+      <div class="history-qty ${h.type}">${h.type==='in'?'+':h.type==='out'?'-':'='}${h.qty}</div>
+    </div>
+  `).join('');
+  updateBadges();
+}
+
+function updateLowStock() {
+  const low = items.filter(i=>getStatus(i)!=='aman');
+  const tbody = document.getElementById('tableBodyLow');
+  if (!low.length) { tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state"><i class="fas fa-check-circle" style="color:var(--green)"></i><h3>Semua stok aman!</h3></div></td></tr>`; return; }
+  tbody.innerHTML = low.map(item => `<tr>
+    <td><div class="item-name">${item.name}</div><div class="item-code">${item.code||''}</div></td>
+    <td><span style="font-weight:700;color:${stockBarColor(item)}">${item.stock} ${item.unit}</span></td>
+    <td>${item.minStock||5} ${item.unit}</td>
+    <td style="color:#dc2626;font-weight:600">${Math.max(0,(item.minStock||5)-item.stock)} ${item.unit}</td>
+    <td><button class="btn btn-primary btn-sm" onclick="openAdjust('${item.id}')"><i class="fas fa-plus"></i> Restock</button></td>
+  </tr>`).join('');
+}
+
+// ── SEARCH / FILTER ──
+function handleSearch() {
+  searchQuery = document.getElementById('searchInput').value.toLowerCase();
+  renderTable();
+}
+
+function filterCat(cat, el) {
+  catFilter = cat;
+  document.querySelectorAll('.filter-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  renderTable();
+}
+
+// ── MODAL CRUD ──
+function openAddModal() {
+  document.getElementById('modalTitle').textContent = 'Tambah Barang';
+  document.getElementById('editId').value = '';
+  ['f_name','f_code','f_category','f_stock','f_minStock','f_notes'].forEach(id=>{
+    const el = document.getElementById(id); el.value='';
+  });
+  document.getElementById('f_minStock').value = 5;
+  document.getElementById('itemModal').classList.add('active');
+}
+
+function openEdit(id) {
+  const item = items.find(i=>i.id===id);
+  if (!item) return;
+  document.getElementById('modalTitle').textContent = 'Edit Barang';
+  document.getElementById('editId').value = id;
+  document.getElementById('f_name').value = item.name||'';
+  document.getElementById('f_code').value = item.code||'';
+  document.getElementById('f_category').value = item.category||'';
+  document.getElementById('f_unit').value = item.unit||'Pcs';
+  document.getElementById('f_stock').value = item.stock||0;
+  document.getElementById('f_minStock').value = item.minStock||5;
+  document.getElementById('f_notes').value = item.notes||'';
+  document.getElementById('itemModal').classList.add('active');
+}
+
+async function saveItem() {
+  const name = document.getElementById('f_name').value.trim();
+  const cat  = document.getElementById('f_category').value;
+  if (!name || !cat) { toast('Nama dan Kategori wajib diisi!','error'); return; }
+
+  const id = document.getElementById('editId').value;
+  const data = {
+    name, category:cat,
+    code: document.getElementById('f_code').value.trim(),
+    unit: document.getElementById('f_unit').value,
+    stock: Number(document.getElementById('f_stock').value)||0,
+    minStock: Number(document.getElementById('f_minStock').value)||5,
+    notes: document.getElementById('f_notes').value.trim(),
+    updatedAt: new Date().toISOString(),
+  };
+
+  if (id) {
+    data.id = id;
+    const idx = items.findIndex(i=>i.id===id);
+    items[idx] = data;
+    if (db) await saveToFirebase(data, false);
+    toast('Barang berhasil diperbarui','success');
+  } else {
+    data.id = Date.now().toString();
+    items.push(data);
+    if (db) await saveToFirebase(data, true);
+    toast('Barang berhasil ditambahkan','success');
+  }
+
+  saveLocal();
+  updateAll();
+  closeModal();
+}
+
+function closeModal() { document.getElementById('itemModal').classList.remove('active'); }
+
+async function deleteItem(id) {
+  const item = items.find(i=>i.id===id);
+  if (!confirm(`Hapus "${item?.name}"?`)) return;
+  items = items.filter(i=>i.id!==id);
+  if (db) await deleteFromFirebase(id);
+  saveLocal();
+  updateAll();
+  toast('Barang dihapus','info');
+}
+
+// ── ADJUST STOCK ──
+function openAdjust(id) {
+  const item = items.find(i=>i.id===id);
+  if (!item) return;
+  document.getElementById('adjustId').value = id;
+  document.getElementById('adjustItemName').textContent = item.name;
+  document.getElementById('adjQty').value = '';
+  document.getElementById('adjNote').value = '';
+  document.getElementById('adjType').value = 'in';
+  document.getElementById('adjustModal').classList.add('active');
+}
+
+async function saveAdjust() {
+  const id   = document.getElementById('adjustId').value;
+  const type = document.getElementById('adjType').value;
+  const qty  = Number(document.getElementById('adjQty').value);
+  const note = document.getElementById('adjNote').value.trim();
+
+  if (!qty || qty <= 0) { toast('Jumlah harus diisi', 'error'); return; }
+
+  const idx = items.findIndex(i=>i.id===id);
+  const item = items[idx];
+  let newStock = item.stock;
+
+  if (type==='in')  newStock += qty;
+  if (type==='out') newStock = Math.max(0, newStock - qty);
+  if (type==='adj') newStock = qty;
+
+  items[idx] = {...item, stock:newStock, updatedAt:new Date().toISOString()};
+
+  const entry = {
+    itemId:id, itemName:item.name, type, qty,
+    note: note||'', date:new Date().toISOString(),
+    stockBefore:item.stock, stockAfter:newStock
+  };
+  history.unshift({id:Date.now().toString(), ...entry});
+
+  if (db) {
+    await saveToFirebase(items[idx], false);
+    await addHistoryToFirebase(entry);
+  }
+
+  saveLocal();
+  updateAll();
+  updateHistory();
+  document.getElementById('adjustModal').classList.remove('active');
+  toast(`Stok diperbarui: ${item.name} → ${newStock} ${item.unit}`, 'success');
+}
+
+// ── EXPORT ──
+function exportCSV() {
+  const header = ['Kode','Nama','Kategori','Stok','Satuan','Min Stok','Status'];
+  const rows = items.map(i=>[
+    i.code||'',i.name,i.category,i.stock,i.unit,i.minStock||5,getStatusLabel(getStatus(i))
+  ]);
+  const csv = [header,...rows].map(r=>r.join(',')).join('\n');
+  const blob = new Blob([csv],{type:'text/csv'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href=url; a.download=`stok-${new Date().toISOString().split('T')[0]}.csv`;
+  a.click();
+  toast('File CSV berhasil didownload','success');
+}
+
+function clearHistory() {
+  if (!confirm('Hapus semua riwayat?')) return;
+  history = [];
+  saveLocal();
+  updateHistory();
+}
+
+// ── HELPERS ──
+function formatDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return d.toLocaleDateString('id-ID',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+}
+
+function toast(msg, type='info') {
+  const wrap = document.getElementById('toastWrap');
+  const el = document.createElement('div');
+  el.className = 'toast ' + type;
+  const icons = {success:'check-circle',error:'times-circle',info:'info-circle'};
+  el.innerHTML = `<i class="fas fa-${icons[type]||icons.info}"></i> ${msg}`;
+  wrap.appendChild(el);
+  setTimeout(()=>el.remove(), 3500);
+}
+
+// Close modals on overlay click
+document.getElementById('itemModal').addEventListener('click', e => { if(e.target===e.currentTarget) closeModal(); });
+document.getElementById('adjustModal').addEventListener('click', e => { if(e.target===e.currentTarget) document.getElementById('adjustModal').classList.remove('active'); });
+document.getElementById('printModal').addEventListener('click', e => { if(e.target===e.currentTarget) document.getElementById('printModal').classList.remove('active'); });
+
+// ── PRINT ──
+function openPrintModal() {
+  document.getElementById('printModal').classList.add('active');
+}
+
+function doPrint() {
+  const title   = document.getElementById('print_title').value || 'Laporan Stok Barang';
+  const store   = document.getElementById('print_store').value || '';
+  const filter  = document.getElementById('print_filter').value;
+  const sortBy  = document.getElementById('print_sort').value;
+
+  let data = [...items];
+
+  // filter
+  if (filter === 'aman')    data = data.filter(i => getStatus(i) === 'aman');
+  if (filter === 'menipis') data = data.filter(i => getStatus(i) === 'menipis');
+  if (filter === 'habis')   data = data.filter(i => getStatus(i) === 'habis');
+  if (filter === 'notaman') data = data.filter(i => getStatus(i) !== 'aman');
+
+  // sort
+  if (sortBy === 'name')       data.sort((a,b) => a.name.localeCompare(b.name));
+  if (sortBy === 'category')   data.sort((a,b) => a.category.localeCompare(b.category));
+  if (sortBy === 'stock_asc')  data.sort((a,b) => a.stock - b.stock);
+  if (sortBy === 'stock_desc') data.sort((a,b) => b.stock - a.stock);
+
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('id-ID', {weekday:'long', year:'numeric', month:'long', day:'numeric'});
+  const timeStr = now.toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'});
+
+  const totalItems  = data.length;
+  const totalStock  = data.reduce((a,i) => a + Number(i.stock||0), 0);
+  const countAman   = data.filter(i => getStatus(i) === 'aman').length;
+  const countTipis  = data.filter(i => getStatus(i) === 'menipis').length;
+  const countHabis  = data.filter(i => getStatus(i) === 'habis').length;
+
+  const statusColor = { aman:'#166534', menipis:'#92400e', habis:'#991b1b' };
+  const statusBg    = { aman:'#dcfce7',  menipis:'#fef3c7', habis:'#fee2e2' };
+  const statusLabel = { aman:'Aman', menipis:'Menipis', habis:'Habis' };
+
+  const rows = data.map((item, idx) => {
+    const st = getStatus(item);
+    const pct = Math.min(100, Math.round((item.stock / Math.max(item.minStock*3||30, item.stock+1)) * 100));
+    const barColor = st === 'aman' ? '#22c55e' : st === 'menipis' ? '#f59e0b' : '#ef4444';
+    return `
+      <tr class="${idx%2===1?'alt':''}">
+        <td class="td-num">${idx+1}</td>
+        <td><span class="code">${item.code||'—'}</span></td>
+        <td class="td-name">${item.name}</td>
+        <td><span class="cat-badge">${item.category}</span></td>
+        <td class="td-stock">
+          <div class="stock-cell">
+            <span class="stock-num" style="color:${barColor}">${item.stock}</span>
+            <div class="mini-bar"><div style="width:${pct}%;background:${barColor};height:100%;border-radius:2px"></div></div>
+          </div>
+        </td>
+        <td>${item.unit}</td>
+        <td style="text-align:center">${item.minStock||5}</td>
+        <td style="text-align:center"><span class="status-pill" style="background:${statusBg[st]};color:${statusColor[st]}">${statusLabel[st]}</span></td>
+        <td class="td-notes">${item.notes||''}</td>
+      </tr>`;
+  }).join('');
+
+  const html = `<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>${title}</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'DM Sans',sans-serif;font-size:12px;color:#111;background:white;padding:0}
+  
+  /* Header */
+  .report-header{padding:28px 32px 20px;border-bottom:3px solid #e8420a;display:flex;align-items:flex-start;justify-content:space-between}
+  .logo-wrap h1{font-family:'Syne',sans-serif;font-size:26px;font-weight:800;color:#0f0f0f;letter-spacing:-0.5px}
+  .logo-wrap h1 span{color:#e8420a}
+  .logo-wrap p{font-size:11px;color:#888;margin-top:2px;letter-spacing:0.5px;text-transform:uppercase}
+  .report-meta{text-align:right}
+  .report-meta .report-title{font-family:'Syne',sans-serif;font-size:18px;font-weight:700;color:#111;margin-bottom:4px}
+  .report-meta .store-name{font-size:13px;font-weight:500;color:#444;margin-bottom:6px}
+  .report-meta .date-info{font-size:11px;color:#888}
+
+  /* Summary cards */
+  .summary{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;padding:16px 32px;background:#f8f6f1;border-bottom:1px solid #e5e5e5}
+  .sum-card{background:white;border-radius:8px;padding:10px 12px;border:1px solid #e5e5e5}
+  .sum-card .label{font-size:9px;text-transform:uppercase;letter-spacing:0.8px;color:#888;font-weight:600;margin-bottom:4px}
+  .sum-card .value{font-family:'Syne',sans-serif;font-size:20px;font-weight:800;line-height:1}
+  .sum-card .sub{font-size:9px;color:#aaa;margin-top:2px}
+  .sum-card.orange .value{color:#e8420a}
+  .sum-card.blue   .value{color:#0369a1}
+  .sum-card.green  .value{color:#166534}
+  .sum-card.gold   .value{color:#92400e}
+  .sum-card.red    .value{color:#991b1b}
+
+  /* Table */
+  .table-wrap{padding:20px 32px}
+  .table-label{font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:#0f0f0f;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+  .table-label::after{content:'';flex:1;height:1px;background:#e5e5e5}
+  table{width:100%;border-collapse:collapse}
+  th{background:#0f0f0f;color:white;padding:8px 10px;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:0.8px;text-align:left}
+  th.center{text-align:center}
+  td{padding:7px 10px;border-bottom:1px solid #f0f0f0;vertical-align:middle}
+  tr.alt td{background:#fafafa}
+  .td-num{color:#aaa;font-size:11px;text-align:center;width:28px}
+  .td-name{font-weight:500}
+  .td-stock{min-width:90px}
+  .td-notes{font-size:11px;color:#888;max-width:120px}
+  .code{font-family:monospace;font-size:10px;color:#888;background:#f5f5f5;padding:2px 5px;border-radius:3px}
+  .cat-badge{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:0.3px;background:#f0f0f0;color:#555;padding:2px 7px;border-radius:10px;white-space:nowrap}
+  .stock-cell{display:flex;align-items:center;gap:6px}
+  .stock-num{font-weight:700;font-size:13px;min-width:28px}
+  .mini-bar{flex:1;height:4px;background:#eee;border-radius:2px;overflow:hidden;min-width:40px}
+  .status-pill{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;padding:3px 8px;border-radius:10px;white-space:nowrap}
+
+  /* Footer */
+  .report-footer{padding:14px 32px;border-top:1px solid #e5e5e5;display:flex;justify-content:space-between;align-items:center;background:#f8f6f1}
+  .report-footer span{font-size:10px;color:#aaa}
+  .report-footer strong{color:#555}
+
+  /* Empty */
+  .empty-print{text-align:center;padding:40px;color:#aaa;font-size:13px}
+
+  @media print {
+    body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .report-header{padding:20px 24px 14px}
+    .summary{padding:12px 24px}
+    .table-wrap{padding:14px 24px}
+    .report-footer{padding:10px 24px}
+    @page{margin:0.5cm;size:A4 portrait}
+  }
+</style>
+</head>
+<body>
+
+<div class="report-header">
+  <div class="logo-wrap">
+    <h1>Print<span>Stock</span></h1>
+    <p>Digital Printing Manager</p>
+  </div>
+  <div class="report-meta">
+    <div class="report-title">${title}</div>
+    ${store ? `<div class="store-name">${store}</div>` : ''}
+    <div class="date-info">Dicetak: ${dateStr} · ${timeStr}</div>
+  </div>
+</div>
+
+<div class="summary">
+  <div class="sum-card orange">
+    <div class="label">Total Jenis</div>
+    <div class="value">${totalItems}</div>
+    <div class="sub">jenis barang</div>
+  </div>
+  <div class="sum-card blue">
+    <div class="label">Total Stok</div>
+    <div class="value">${totalStock.toLocaleString('id')}</div>
+    <div class="sub">unit tersedia</div>
+  </div>
+  <div class="sum-card green">
+    <div class="label">Stok Aman</div>
+    <div class="value">${countAman}</div>
+    <div class="sub">jenis</div>
+  </div>
+  <div class="sum-card gold">
+    <div class="label">Menipis</div>
+    <div class="value">${countTipis}</div>
+    <div class="sub">perlu perhatian</div>
+  </div>
+  <div class="sum-card red">
+    <div class="label">Habis</div>
+    <div class="value">${countHabis}</div>
+    <div class="sub">segera restock</div>
+  </div>
+</div>
+
+<div class="table-wrap">
+  <div class="table-label">Daftar Barang</div>
+  ${data.length === 0 ? '<div class="empty-print">Tidak ada barang yang sesuai filter</div>' : `
+  <table>
+    <thead>
+      <tr>
+        <th class="center">#</th>
+        <th>Kode</th>
+        <th>Nama Barang</th>
+        <th>Kategori</th>
+        <th>Stok</th>
+        <th>Satuan</th>
+        <th class="center">Min Stok</th>
+        <th class="center">Status</th>
+        <th>Catatan</th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+  </table>`}
+</div>
+
+<div class="report-footer">
+  <span>PrintStock — Manajemen Stok Digital Printing${store?' · <strong>'+store+'</strong>':''}</span>
+  <span>Total: <strong>${totalItems} jenis</strong> · <strong>${totalStock.toLocaleString('id')} unit</strong></span>
+  <span>📅 ${dateStr}</span>
+</div>
+
+<script>window.onload=()=>{window.print()}<\/script>
+</body>
+</html>`;
+
+  const win = window.open('', '_blank');
+  win.document.write(html);
+  win.document.close();
+  document.getElementById('printModal').classList.remove('active');
+  toast('Laporan siap dicetak!', 'success');
+}
+
+// Try reconnect saved Firebase config on load
+window.addEventListener('load', () => {
+  const saved = localStorage.getItem('fb_config');
+  if (saved) {
+    try {
+      const cfg = JSON.parse(saved);
+      if (cfg.apiKey && cfg.projectId) {
+        document.getElementById('fb_apiKey').value = cfg.apiKey;
+        document.getElementById('fb_authDomain').value = cfg.authDomain||'';
+        document.getElementById('fb_projectId').value = cfg.projectId;
+        document.getElementById('fb_appId').value = cfg.appId||'';
+        connectFirebase();
+      }
+    } catch(e) {}
+  }
+});
+</script>
+</body>
+</html>
