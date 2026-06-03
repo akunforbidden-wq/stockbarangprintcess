@@ -360,34 +360,7 @@
   .toast.error { border-left: 3px solid #dc2626; }
   .toast.info { border-left: 3px solid var(--cyan); }
 
-  /* ── FIREBASE SETUP MODAL ── */
-  .setup-overlay {
-    display: flex; position: fixed; inset: 0; z-index: 300;
-    background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
-    align-items: center; justify-content: center;
-  }
-  .setup-modal {
-    background: white; border-radius: 20px;
-    width: 100%; max-width: 560px;
-    box-shadow: 0 24px 80px rgba(0,0,0,0.3);
-    padding: 32px;
-  }
-  .setup-modal h2 { font-family: 'Syne', sans-serif; font-size: 24px; font-weight: 800; margin-bottom: 8px; }
-  .setup-modal p { color: var(--ink-muted); font-size: 14px; margin-bottom: 24px; line-height: 1.6; }
-  .setup-tabs { display: flex; gap: 4px; background: var(--paper); border-radius: 10px; padding: 4px; margin-bottom: 20px; }
-  .setup-tab { flex: 1; padding: 8px; text-align: center; border-radius: 7px; cursor: pointer; font-size: 13px; font-weight: 500; color: var(--ink-muted); transition: all 0.2s; }
-  .setup-tab.active { background: white; color: var(--ink); box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
-  .code-block {
-    background: var(--ink); color: #e5e7eb;
-    border-radius: 10px; padding: 14px 16px;
-    font-family: monospace; font-size: 12px;
-    line-height: 1.6; margin-bottom: 16px;
-    white-space: pre-wrap; word-break: break-all;
-  }
-  .code-block .key { color: #93c5fd; }
-  .code-block .val { color: #86efac; }
-  .skip-btn { background: transparent; border: 1.5px solid var(--border-strong); color: var(--ink-muted); }
-  .skip-btn:hover { border-color: var(--ink); color: var(--ink); }
+  /* Setup overlay dihapus — Firebase terhubung otomatis */
 
   /* ── LOADING ── */
   .loading-row td { text-align: center; padding: 40px; color: var(--ink-muted); }
@@ -432,60 +405,7 @@
 </head>
 <body>
 
-<!-- Firebase Setup Modal -->
-<div class="setup-overlay" id="setupOverlay">
-  <div class="setup-modal">
-    <h2>🔥 Hubungkan Firebase</h2>
-    <p>Aplikasi ini tersinkronisasi secara real-time via Firebase Firestore. Masukkan konfigurasi Firebase project Anda, atau gunakan mode offline terlebih dahulu.</p>
-
-    <div class="setup-tabs">
-      <div class="setup-tab active" onclick="switchSetupTab(this,'config')">Masukkan Config</div>
-      <div class="setup-tab" onclick="switchSetupTab(this,'guide')">Cara Mendapatkan</div>
-    </div>
-
-    <div id="tabConfig">
-      <div class="form-row">
-        <div class="form-group">
-          <label>API Key</label>
-          <input class="form-control" id="fb_apiKey" placeholder="AIzaSy...">
-        </div>
-        <div class="form-group">
-          <label>Auth Domain</label>
-          <input class="form-control" id="fb_authDomain" placeholder="xxx.firebaseapp.com">
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>Project ID</label>
-          <input class="form-control" id="fb_projectId" placeholder="my-project-id">
-        </div>
-        <div class="form-group">
-          <label>App ID</label>
-          <input class="form-control" id="fb_appId" placeholder="1:xxx:web:xxx">
-        </div>
-      </div>
-      <div style="display:flex; gap:10px; margin-top:8px;">
-        <button class="btn btn-primary" onclick="connectFirebase()" style="flex:1"><i class="fas fa-fire"></i> Hubungkan Firebase</button>
-        <button class="btn skip-btn" onclick="skipFirebase()"><i class="fas fa-arrow-right"></i> Mode Offline</button>
-      </div>
-    </div>
-
-    <div id="tabGuide" style="display:none">
-      <ol style="font-size:13px; line-height:2; color:var(--ink-soft); padding-left:18px; margin-bottom:16px;">
-        <li>Buka <a href="https://console.firebase.google.com" target="_blank" style="color:var(--accent)">console.firebase.google.com</a></li>
-        <li>Buat project baru → tambahkan Web App</li>
-        <li>Aktifkan <strong>Firestore Database</strong> (mode test)</li>
-        <li>Salin config dari <em>Project Settings → Your Apps</em></li>
-        <li>Tempel di tab "Masukkan Config"</li>
-      </ol>
-      <div class="code-block"><span class="key">apiKey</span>: <span class="val">"AIzaSy..."</span>
-<span class="key">authDomain</span>: <span class="val">"project.firebaseapp.com"</span>
-<span class="key">projectId</span>: <span class="val">"my-project-id"</span>
-<span class="key">appId</span>: <span class="val">"1:xxx:web:xxx"</span></div>
-      <button class="btn skip-btn" onclick="skipFirebase()" style="width:100%"><i class="fas fa-arrow-right"></i> Lanjutkan Mode Offline</button>
-    </div>
-  </div>
-</div>
+<!-- Firebase terhubung otomatis — tidak perlu setup overlay -->
 
 <!-- Sidebar -->
 <div class="sidebar">
@@ -817,9 +737,10 @@ const catColors = {
 
 // ── INIT ──
 window.addEventListener('load', () => {
-  // try load from localStorage first
   loadLocal();
   updateAll();
+  // Auto-connect Firebase langsung tanpa input manual
+  connectFirebase();
 });
 
 function loadLocal() {
@@ -852,24 +773,25 @@ function saveLocal() {
 }
 
 // ── FIREBASE ──
-function connectFirebase() {
-  const cfg = {
-    apiKey: document.getElementById('fb_apiKey').value.trim(),
-    authDomain: document.getElementById('fb_authDomain').value.trim(),
-    projectId: document.getElementById('fb_projectId').value.trim(),
-    appId: document.getElementById('fb_appId').value.trim(),
-  };
-  if (!cfg.apiKey || !cfg.projectId) { toast('Isi API Key dan Project ID', 'error'); return; }
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyCIDNjnRl7bd47zOmC9MFDbs9MvoGsosMU",
+  authDomain: "stokbarang-e3f2c.firebaseapp.com",
+  projectId: "stokbarang-e3f2c",
+  storageBucket: "stokbarang-e3f2c.firebasestorage.app",
+  messagingSenderId: "621650444974",
+  appId: "1:621650444974:web:9121089188054feac6233f",
+  measurementId: "G-W0YFH2W0ET"
+};
 
+function connectFirebase() {
   try {
-    if (!firebase.apps.length) firebase.initializeApp(cfg);
+    if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
     db = firebase.firestore();
-    localStorage.setItem('fb_config', JSON.stringify(cfg));
-    document.getElementById('setupOverlay').style.display = 'none';
     startFirebaseSync();
     toast('Firebase terhubung!', 'success');
   } catch(e) {
     toast('Koneksi gagal: ' + e.message, 'error');
+    setSyncStatus('error', 'Koneksi Gagal');
   }
 }
 
@@ -916,23 +838,12 @@ async function addHistoryToFirebase(entry) {
 }
 
 function skipFirebase() {
-  document.getElementById('setupOverlay').style.display = 'none';
   setSyncStatus('error','Mode Offline');
   updateAll();
 }
 
 function showSetup() {
-  const saved = localStorage.getItem('fb_config');
-  if (saved) {
-    try {
-      const cfg = JSON.parse(saved);
-      document.getElementById('fb_apiKey').value = cfg.apiKey || '';
-      document.getElementById('fb_authDomain').value = cfg.authDomain || '';
-      document.getElementById('fb_projectId').value = cfg.projectId || '';
-      document.getElementById('fb_appId').value = cfg.appId || '';
-    } catch(e){}
-  }
-  document.getElementById('setupOverlay').style.display = 'flex';
+  toast('Firebase sudah terhubung ke project: stokbarang-e3f2c', 'info');
 }
 
 function setSyncStatus(type, text) {
@@ -942,12 +853,7 @@ function setSyncStatus(type, text) {
   txt.textContent = text;
 }
 
-function switchSetupTab(el, tab) {
-  document.querySelectorAll('.setup-tab').forEach(t=>t.classList.remove('active'));
-  el.classList.add('active');
-  document.getElementById('tabConfig').style.display = tab==='config'?'block':'none';
-  document.getElementById('tabGuide').style.display = tab==='guide'?'block':'none';
-}
+
 
 // ── PAGES ──
 function showPage(page, navEl) {
@@ -1493,22 +1399,7 @@ function doPrint() {
   toast('Laporan siap dicetak!', 'success');
 }
 
-// Try reconnect saved Firebase config on load
-window.addEventListener('load', () => {
-  const saved = localStorage.getItem('fb_config');
-  if (saved) {
-    try {
-      const cfg = JSON.parse(saved);
-      if (cfg.apiKey && cfg.projectId) {
-        document.getElementById('fb_apiKey').value = cfg.apiKey;
-        document.getElementById('fb_authDomain').value = cfg.authDomain||'';
-        document.getElementById('fb_projectId').value = cfg.projectId;
-        document.getElementById('fb_appId').value = cfg.appId||'';
-        connectFirebase();
-      }
-    } catch(e) {}
-  }
-});
+// Firebase terhubung otomatis via FIREBASE_CONFIG yang sudah di-hardcode
 </script>
 </body>
 </html>
