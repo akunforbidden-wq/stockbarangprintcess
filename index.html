@@ -737,20 +737,20 @@ const catColors = {
 
 // ── INIT ──
 window.addEventListener('load', () => {
-  loadLocal();
-  updateAll();
-  // Auto-connect Firebase langsung tanpa input manual
+  // Langsung connect Firebase — data akan datang dari onSnapshot
+  // Tidak load localStorage dulu supaya tidak tumpang tindih dengan Firestore
   connectFirebase();
 });
 
 function loadLocal() {
+  // Hanya dipakai saat Firebase offline/gagal
   try {
     const stored = localStorage.getItem('printstock_items');
     const storedHist = localStorage.getItem('printstock_history');
     if (stored) items = JSON.parse(stored);
     if (storedHist) history = JSON.parse(storedHist);
-    if (items.length === 0) seedSampleData();
-  } catch(e) { seedSampleData(); }
+    // Jangan seed sample data — biarkan Firestore yang jadi sumber kebenaran
+  } catch(e) { items = []; history = []; }
 }
 
 function seedSampleData() {
@@ -787,43 +787,62 @@ function connectFirebase() {
   try {
     if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
     db = firebase.firestore();
+    setSyncStatus('syncing', 'Menghubungkan...');
     startFirebaseSync();
-    toast('Firebase terhubung!', 'success');
   } catch(e) {
-    toast('Koneksi gagal: ' + e.message, 'error');
+    toast('Koneksi Firebase gagal: ' + e.message, 'error');
     setSyncStatus('error', 'Koneksi Gagal');
+    // Fallback: load dari localStorage jika Firebase gagal
+    loadLocal();
+    updateAll();
   }
 }
 
 function startFirebaseSync() {
-  setSyncStatus('syncing','Mensinkronisasi...');
   if (unsubscribe) unsubscribe();
 
-  unsubscribe = db.collection('items').onSnapshot(snapshot => {
-    items = snapshot.docs.map(d => ({id:d.id, ...d.data()}));
-    saveLocal();
-    updateAll();
-    setSyncStatus('connected','Tersinkronisasi');
-    isFirebaseConnected = true;
-  }, err => {
-    setSyncStatus('error','Error: '+err.code);
-    toast('Sync error: '+err.message,'error');
+  // Tampilkan loading di tabel
+  const tbodies = ['tableBody','tableBodyFull'];
+  tbodies.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = '<tr class="loading-row"><td colspan="6"><div class="spinner"></div><p>Memuat dari Firebase...</p></td></tr>';
   });
 
-  db.collection('history').orderBy('date','desc').limit(100).onSnapshot(snap => {
-    history = snap.docs.map(d => ({id:d.id, ...d.data()}));
+  unsubscribe = db.collection('items').onSnapshot(snapshot => {
+    items = snapshot.docs.map(d => ({id: d.id, ...d.data()}));
+    saveLocal();
+    updateAll();
+    if (!isFirebaseConnected) {
+      isFirebaseConnected = true;
+      setSyncStatus('connected', 'Tersinkronisasi (' + items.length + ' barang)');
+      toast('Firebase terhubung! ' + items.length + ' barang dimuat.', 'success');
+    } else {
+      setSyncStatus('connected', 'Tersinkronisasi');
+    }
+  }, err => {
+    setSyncStatus('error', 'Error: ' + err.code);
+    toast('Sync error: ' + err.message, 'error');
+    // Fallback ke localStorage jika snapshot gagal
+    loadLocal();
+    updateAll();
+  });
+
+  db.collection('history').orderBy('date', 'desc').limit(100).onSnapshot(snap => {
+    history = snap.docs.map(d => ({id: d.id, ...d.data()}));
     updateHistory();
+  }, err => {
+    console.warn('History sync error:', err.message);
   });
 }
 
 async function saveToFirebase(item, isNew) {
+  // Fungsi ini sekarang hanya sebagai fallback — CRUD utama langsung di fungsi masing-masing
   if (!db) return;
-  setSyncStatus('syncing','Menyimpan...');
   if (isNew) {
     const ref = await db.collection('items').add(item);
     return ref.id;
   } else {
-    await db.collection('items').doc(item.id).set(item, {merge:true});
+    await db.collection('items').doc(item.id).set(item, {merge: true});
   }
 }
 
@@ -1051,47 +1070,81 @@ function openEdit(id) {
 async function saveItem() {
   const name = document.getElementById('f_name').value.trim();
   const cat  = document.getElementById('f_category').value;
-  if (!name || !cat) { toast('Nama dan Kategori wajib diisi!','error'); return; }
+  if (!name || !cat) { toast('Nama dan Kategori wajib diisi!', 'error'); return; }
 
-  const id = document.getElementById('editId').value;
+  const editId = document.getElementById('editId').value;
   const data = {
-    name, category:cat,
+    name, category: cat,
     code: document.getElementById('f_code').value.trim(),
     unit: document.getElementById('f_unit').value,
-    stock: Number(document.getElementById('f_stock').value)||0,
-    minStock: Number(document.getElementById('f_minStock').value)||5,
+    stock: Number(document.getElementById('f_stock').value) || 0,
+    minStock: Number(document.getElementById('f_minStock').value) || 5,
     notes: document.getElementById('f_notes').value.trim(),
     updatedAt: new Date().toISOString(),
   };
 
-  if (id) {
-    data.id = id;
-    const idx = items.findIndex(i=>i.id===id);
-    items[idx] = data;
-    if (db) await saveToFirebase(data, false);
-    toast('Barang berhasil diperbarui','success');
-  } else {
-    data.id = Date.now().toString();
-    items.push(data);
-    if (db) await saveToFirebase(data, true);
-    toast('Barang berhasil ditambahkan','success');
-  }
-
-  saveLocal();
-  updateAll();
   closeModal();
+
+  if (editId) {
+    // UPDATE — kirim ke Firestore, onSnapshot akan update tampilan
+    data.id = editId;
+    if (db) {
+      try {
+        setSyncStatus('syncing', 'Menyimpan...');
+        await db.collection('items').doc(editId).set(data, {merge: true});
+        toast('Barang berhasil diperbarui', 'success');
+      } catch(e) {
+        toast('Gagal menyimpan: ' + e.message, 'error');
+        setSyncStatus('error', 'Gagal simpan');
+      }
+    } else {
+      // Offline fallback
+      const idx = items.findIndex(i => i.id === editId);
+      if (idx >= 0) items[idx] = data;
+      saveLocal(); updateAll();
+      toast('Barang diperbarui (offline)', 'info');
+    }
+  } else {
+    // TAMBAH BARU — biarkan Firestore generate ID, onSnapshot otomatis update tampilan
+    if (db) {
+      try {
+        setSyncStatus('syncing', 'Menyimpan...');
+        await db.collection('items').add(data);
+        toast('Barang berhasil ditambahkan', 'success');
+      } catch(e) {
+        toast('Gagal menyimpan: ' + e.message, 'error');
+        setSyncStatus('error', 'Gagal simpan');
+      }
+    } else {
+      // Offline fallback
+      data.id = Date.now().toString();
+      items.push(data);
+      saveLocal(); updateAll();
+      toast('Barang ditambahkan (offline)', 'info');
+    }
+  }
 }
 
 function closeModal() { document.getElementById('itemModal').classList.remove('active'); }
 
 async function deleteItem(id) {
-  const item = items.find(i=>i.id===id);
+  const item = items.find(i => i.id === id);
   if (!confirm(`Hapus "${item?.name}"?`)) return;
-  items = items.filter(i=>i.id!==id);
-  if (db) await deleteFromFirebase(id);
-  saveLocal();
-  updateAll();
-  toast('Barang dihapus','info');
+  if (db) {
+    try {
+      setSyncStatus('syncing', 'Menghapus...');
+      await db.collection('items').doc(id).delete();
+      toast('Barang dihapus', 'info');
+    } catch(e) {
+      toast('Gagal hapus: ' + e.message, 'error');
+      setSyncStatus('error', 'Gagal hapus');
+    }
+  } else {
+    // Offline fallback
+    items = items.filter(i => i.id !== id);
+    saveLocal(); updateAll();
+    toast('Barang dihapus (offline)', 'info');
+  }
 }
 
 // ── ADJUST STOCK ──
@@ -1114,33 +1167,43 @@ async function saveAdjust() {
 
   if (!qty || qty <= 0) { toast('Jumlah harus diisi', 'error'); return; }
 
-  const idx = items.findIndex(i=>i.id===id);
-  const item = items[idx];
+  const item = items.find(i => i.id === id);
+  if (!item) { toast('Barang tidak ditemukan', 'error'); return; }
+
   let newStock = item.stock;
+  if (type === 'in')  newStock += qty;
+  if (type === 'out') newStock = Math.max(0, newStock - qty);
+  if (type === 'adj') newStock = qty;
 
-  if (type==='in')  newStock += qty;
-  if (type==='out') newStock = Math.max(0, newStock - qty);
-  if (type==='adj') newStock = qty;
-
-  items[idx] = {...item, stock:newStock, updatedAt:new Date().toISOString()};
-
+  const updatedItem = {...item, stock: newStock, updatedAt: new Date().toISOString()};
   const entry = {
-    itemId:id, itemName:item.name, type, qty,
-    note: note||'', date:new Date().toISOString(),
-    stockBefore:item.stock, stockAfter:newStock
+    itemId: id, itemName: item.name, type, qty,
+    note: note || '', date: new Date().toISOString(),
+    stockBefore: item.stock, stockAfter: newStock
   };
-  history.unshift({id:Date.now().toString(), ...entry});
+
+  document.getElementById('adjustModal').classList.remove('active');
 
   if (db) {
-    await saveToFirebase(items[idx], false);
-    await addHistoryToFirebase(entry);
+    try {
+      setSyncStatus('syncing', 'Menyimpan stok...');
+      // Update stok di Firestore (onSnapshot akan update tampilan otomatis)
+      await db.collection('items').doc(id).set(updatedItem, {merge: true});
+      // Simpan riwayat ke Firestore
+      await db.collection('history').add(entry);
+      toast(`Stok diperbarui: ${item.name} → ${newStock} ${item.unit}`, 'success');
+    } catch(e) {
+      toast('Gagal simpan stok: ' + e.message, 'error');
+      setSyncStatus('error', 'Gagal simpan');
+    }
+  } else {
+    // Offline fallback
+    const idx = items.findIndex(i => i.id === id);
+    items[idx] = updatedItem;
+    history.unshift({id: Date.now().toString(), ...entry});
+    saveLocal(); updateAll(); updateHistory();
+    toast(`Stok diperbarui (offline): ${item.name} → ${newStock} ${item.unit}`, 'info');
   }
-
-  saveLocal();
-  updateAll();
-  updateHistory();
-  document.getElementById('adjustModal').classList.remove('active');
-  toast(`Stok diperbarui: ${item.name} → ${newStock} ${item.unit}`, 'success');
 }
 
 // ── EXPORT ──
